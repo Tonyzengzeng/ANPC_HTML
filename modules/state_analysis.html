@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+:root{
+  --bg:#fff;--surface:#f8fafc;--surface2:#f1f5f9;--border:#e2e8f0;
+  --text:#1e293b;--text-dim:#64748b;
+  --q1:#d97706;--q2:#9333ea;--q3:#2563eb;--q4:#dc2626;
+  --on-color:#16a34a;--wire:#94a3b8;--dev:#374151;--current-flow:#f59e0b;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:"Microsoft YaHei",sans-serif;
+     height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── Controls ── */
+.ctrl{flex-shrink:0;padding:5px 8px 4px;border-bottom:1px solid var(--border);background:var(--surface)}
+.quad-row{display:flex;gap:4px;margin-bottom:4px}
+.quad-btn{flex:1;padding:4px 3px;border-radius:5px;border:2px solid var(--border);
+          background:var(--bg);cursor:pointer;transition:all .2s;text-align:center}
+.quad-btn .ql{font-size:11.5px;font-weight:700;line-height:1.25}
+.quad-btn .qi{font-size:9.5px;color:var(--text-dim)}
+.quad-btn:hover{border-color:var(--text-dim)}
+.quad-btn[data-q="1"]{color:var(--q1)}.quad-btn[data-q="1"].active{border-color:var(--q1);background:rgba(217,119,6,.07)}
+.quad-btn[data-q="2"]{color:var(--q2)}.quad-btn[data-q="2"].active{border-color:var(--q2);background:rgba(147,51,234,.07)}
+.quad-btn[data-q="3"]{color:var(--q3)}.quad-btn[data-q="3"].active{border-color:var(--q3);background:rgba(37,99,235,.07)}
+.quad-btn[data-q="4"]{color:var(--q4)}.quad-btn[data-q="4"].active{border-color:var(--q4);background:rgba(220,38,38,.07)}
+.sub-row{display:flex;gap:4px;flex-wrap:wrap}
+.sub-btn{padding:3px 10px;border-radius:4px;border:1.5px solid var(--border);
+         background:var(--bg);color:var(--text-dim);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s}
+.sub-btn:hover{border-color:var(--text-dim);color:var(--text)}
+.sub-btn.active{border-color:#059669;background:rgba(5,150,105,.09);color:#059669}
+
+/* ── Main layout:  SVG takes all remaining space, info panel fixed width ── */
+.main{flex:1;display:flex;overflow:hidden}
+.svgpanel{flex:1;display:flex;align-items:center;justify-content:flex-start;
+          padding:3px 2px;border-right:1px solid var(--border);overflow:hidden}
+.svgpanel svg{height:100%;width:auto;display:block}
+.infopanel{flex:0 0 245px;overflow-y:auto;padding:7px 9px;display:flex;flex-direction:column;gap:6px}
+
+/* ── Info panel ── */
+.st{width:100%;border-collapse:collapse;font-size:11px}
+.st th{padding:4px 2px;text-align:center;color:var(--text-dim);font-weight:500;font-size:10px;
+       border-bottom:1.5px solid var(--border);background:var(--surface2)}
+.st td{padding:4px 2px;text-align:center;border-bottom:1px solid var(--border)}
+.so{color:#16a34a;font-weight:700}.sf2{color:#9ca3af}
+.db{background:var(--surface2);border-radius:5px;padding:8px;
+    border-left:3px solid #059669;line-height:1.6;font-size:11px;flex:1}
+.db .tt{font-weight:700;font-size:11.5px;margin-bottom:3px;color:var(--text)}
+.db .dc{color:var(--text-dim)}
+.lg{display:flex;gap:8px;flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text-dim)}
+.ld{width:20px;height:3px;border-radius:1px}
+
+/* ── Flow animation ── */
+@keyframes march{to{stroke-dashoffset:-24}}
+.fl{stroke:var(--current-flow);stroke-width:3;stroke-dasharray:10 6;
+    stroke-linecap:round;stroke-linejoin:round;fill:none;
+    animation:march .45s linear infinite;filter:drop-shadow(0 0 3px rgba(251,191,36,.5))}
+.fg{stroke:var(--current-flow);stroke-width:8;stroke-linecap:round;
+    stroke-linejoin:round;fill:none;opacity:.1}
+</style>
+</head>
+<body>
+
+<div class="ctrl">
+  <div class="quad-row">
+    <div class="quad-btn active" data-q="1" onclick="setQ(1)">
+      <div class="ql">Q1 · V&gt;0, I&gt;0</div><div class="qi">逆变正半周</div>
+    </div>
+    <div class="quad-btn" data-q="2" onclick="setQ(2)">
+      <div class="ql">Q2 · V&gt;0, I&lt;0</div><div class="qi">整流正半周</div>
+    </div>
+    <div class="quad-btn" data-q="4" onclick="setQ(4)">
+      <div class="ql">Q4 · V&lt;0, I&gt;0</div><div class="qi">整流负半周</div>
+    </div>
+    <div class="quad-btn" data-q="3" onclick="setQ(3)">
+      <div class="ql">Q3 · V&lt;0, I&lt;0</div><div class="qi">逆变负半周</div>
+    </div>
+  </div>
+  <div class="sub-row" id="subRow"></div>
+</div>
+
+<div class="main">
+  <!-- ══ SVG Circuit  viewBox="0 0 460 600"
+       Layout coordinates:
+         Left bus   x=90   |  Clamp col  x=185  |  Main col   x=280
+         P bus      y=30   |  node_A     y=140   |  O neutral  y=280
+         node_B     y=420  |  N bus      y=560
+         T1 (264,50)→E(280,120)   T2 (264,140)→E(280,210)   T5 (169,140)→E(185,210)
+         T3 (264,350)→E(280,420)  T4 (264,440)→E(280,510)   T6 (169,350)→E(185,420)
+         Note: T2 & T5 collectors both at y=140 (level)
+               T3 & T6 emitters  both at y=420 (level)
+  ══ -->
+  <div class="svgpanel">
+  <svg viewBox="0 0 460 600" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- ── P / N bus horizontal ── -->
+  <line x1="90" y1="30"  x2="280" y2="30"  stroke="var(--wire)" stroke-width="2.5"/>
+  <line x1="90" y1="560" x2="280" y2="560" stroke="var(--wire)" stroke-width="2.5"/>
+
+  <!-- ── Left vertical DC bus (split at C1 and C2) ── -->
+  <line x1="90" y1="30"  x2="90" y2="147" stroke="var(--wire)" stroke-width="2"/>
+  <line x1="90" y1="163" x2="90" y2="413" stroke="var(--wire)" stroke-width="2"/>
+  <line x1="90" y1="429" x2="90" y2="560" stroke="var(--wire)" stroke-width="2"/>
+
+  <!-- Bus labels: P / N (bold) + voltage annotation -->
+  <text x="4"  y="28"  fill="#c2410c" font-size="15" font-family="monospace" font-weight="700">P</text>
+  <text x="4"  y="42"  fill="#c2410c" font-size="9"  font-family="monospace" opacity=".75">+Vdc/2</text>
+  <text x="4"  y="556" fill="#1d4ed8" font-size="15" font-family="monospace" font-weight="700">N</text>
+  <text x="4"  y="570" fill="#1d4ed8" font-size="9"  font-family="monospace" opacity=".75">−Vdc/2</text>
+
+  <!-- ── Capacitor C1  (P→O upper half, centered y≈155) ── -->
+  <line x1="72" y1="150" x2="108" y2="150" stroke="#6b7280" stroke-width="3.5"/>
+  <line x1="72" y1="160" x2="108" y2="160" stroke="#6b7280" stroke-width="3.5"/>
+  <text x="68" y="158" fill="#6b7280" font-size="10" font-family="monospace" font-weight="600" text-anchor="end">C1</text>
+
+  <!-- ── Capacitor C2  (O→N lower half, centered y≈420) ── -->
+  <line x1="72" y1="416" x2="108" y2="416" stroke="#6b7280" stroke-width="3.5"/>
+  <line x1="72" y1="426" x2="108" y2="426" stroke="#6b7280" stroke-width="3.5"/>
+  <text x="68" y="424" fill="#6b7280" font-size="10" font-family="monospace" font-weight="600" text-anchor="end">C2</text>
+
+  <!-- ── Neutral point O ── -->
+  <circle cx="90" cy="280" r="5" fill="#059669"/>
+  <text x="30" y="284" fill="#059669" font-size="12" font-family="monospace" font-weight="700">O</text>
+  <line x1="90" y1="280" x2="185" y2="280" stroke="var(--wire)" stroke-width="1.8"/>
+
+  <!-- ── Main column wires ── -->
+  <!-- P bus → T1 collector -->
+  <line x1="280" y1="30"  x2="280" y2="50"  stroke="var(--wire)" stroke-width="1.5"/>
+  <!-- T1 emitter → node_A (y=140) -->
+  <line x1="280" y1="120" x2="280" y2="140" stroke="var(--wire)" stroke-width="1.5"/>
+  <!-- node_A junction dot + horizontal wire to clamp col -->
+  <circle cx="280" cy="140" r="3.5" fill="var(--wire)"/>
+  <line x1="185" y1="140" x2="280" y2="140" stroke="var(--wire)" stroke-width="1.5"/>
+  <!-- T2 emitter (y=210) → AC node (y=280) -->
+  <line x1="280" y1="210" x2="280" y2="280" stroke="var(--wire)" stroke-width="1.5"/>
+
+  <!-- AC output node + wire (shorter) -->
+  <circle cx="280" cy="280" r="5" fill="var(--dev)"/>
+  <line x1="280" y1="280" x2="390" y2="280" stroke="var(--wire)" stroke-width="1.8"/>
+  <text x="393" y="284" fill="var(--dev)" font-size="12" font-family="monospace" font-weight="700">AC</text>
+
+  <!-- Vout = plain text annotation along AC wire -->
+  <text x="300" y="265" fill="#6b7280" font-size="10" font-family="monospace">Vout =</text>
+  <text x="300" y="278" fill="#d97706" font-size="13" font-family="monospace" font-weight="700" id="vt">+Vdc/2</text>
+  <text x="302" y="296" fill="#f59e0b" font-size="10" font-family="monospace" id="ioLabel">io &gt; 0 →</text>
+
+  <!-- AC node → T3 collector -->
+  <line x1="280" y1="280" x2="280" y2="350" stroke="var(--wire)" stroke-width="1.5"/>
+  <!-- node_B junction dot (T3 emitter = T6 emitter = y=420) + horizontal wire -->
+  <circle cx="280" cy="420" r="3.5" fill="var(--wire)"/>
+  <line x1="185" y1="420" x2="280" y2="420" stroke="var(--wire)" stroke-width="1.5"/>
+  <!-- node_B → T4 collector -->
+  <line x1="280" y1="420" x2="280" y2="440" stroke="var(--wire)" stroke-width="1.5"/>
+  <!-- T4 emitter → N bus -->
+  <line x1="280" y1="510" x2="280" y2="560" stroke="var(--wire)" stroke-width="1.5"/>
+
+  <!-- ── Clamp column wires ── -->
+  <!-- T5 collector = node_A at (185,140); no wire above T5 needed -->
+  <!-- T5 emitter (185,210) → O (185,280) -->
+  <line x1="185" y1="210" x2="185" y2="280" stroke="var(--wire)" stroke-width="1.5"/>
+  <!-- O (185,280) → T6 collector (185,350) -->
+  <line x1="185" y1="280" x2="185" y2="350" stroke="var(--wire)" stroke-width="1.5"/>
+  <!-- T6 emitter = node_B at (185,420); no wire below T6 needed -->
+
+  <!-- ════════════════════════════════════════════════════
+       IGBT+Diode symbols  —  class="sw-line" on IGBT body,
+       explicit ids on diode elements.
+       T-label: id="tN-lb"   ON/OFF status: id="tN-st"
+  ════════════════════════════════════════════════════ -->
+
+  <!-- ══ T1: translate(264,50)  C=(280,50)  E=(280,120) ══ -->
+  <g id="t1-igbt" transform="translate(264,50)">
+    <line class="sw-line" x1="-14" y1="35" x2="-2"  y2="35" stroke="#374151" stroke-width="1.6"/>
+    <line class="sw-line" x1="0"   y1="14" x2="0"   y2="56" stroke="#374151" stroke-width="2.8"/>
+    <line class="sw-line" x1="6"   y1="14" x2="6"   y2="56" stroke="#374151" stroke-width="2.2"/>
+    <line class="sw-line" x1="6"   y1="20" x2="16"  y2="8"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="8"  x2="16"  y2="0"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="6"   y1="48" x2="16"  y2="60" stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="60" x2="16"  y2="70" stroke="#374151" stroke-width="2"/>
+    <polygon class="sw-line" points="10,52 16,60 10,58" fill="#374151"/>
+    <line   id="d1-w1"  x1="28" y1="0"  x2="28" y2="20" stroke="#4b5563" stroke-width="1.4"/>
+    <line   id="d1-bar" x1="22" y1="20" x2="34" y2="20" stroke="#4b5563" stroke-width="2.2"/>
+    <polygon id="d1-tri" points="28,20 22,38 34,38" fill="none" stroke="#4b5563" stroke-width="1.5"/>
+    <line   id="d1-w2"  x1="28" y1="38" x2="28" y2="70" stroke="#4b5563" stroke-width="1.4"/>
+    <text id="t1-lb" x="-18" y="28" fill="#374151" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T1</text>
+    <text id="t1-st" x="-18" y="44" fill="#9ca3af" font-size="9"  font-family="monospace" text-anchor="end">OFF</text>
+    <text id="d1-lb" x="38"  y="14" fill="#4b5563" font-size="9"  font-family="monospace">D1</text>
+  </g>
+
+  <!-- ══ T2: translate(264,140) C=(280,140)=node_A  E=(280,210) ══ -->
+  <g id="t2-igbt" transform="translate(264,140)">
+    <line class="sw-line" x1="-14" y1="35" x2="-2"  y2="35" stroke="#374151" stroke-width="1.6"/>
+    <line class="sw-line" x1="0"   y1="14" x2="0"   y2="56" stroke="#374151" stroke-width="2.8"/>
+    <line class="sw-line" x1="6"   y1="14" x2="6"   y2="56" stroke="#374151" stroke-width="2.2"/>
+    <line class="sw-line" x1="6"   y1="20" x2="16"  y2="8"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="8"  x2="16"  y2="0"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="6"   y1="48" x2="16"  y2="60" stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="60" x2="16"  y2="70" stroke="#374151" stroke-width="2"/>
+    <polygon class="sw-line" points="10,52 16,60 10,58" fill="#374151"/>
+    <line   id="d2-w1"  x1="28" y1="0"  x2="28" y2="20" stroke="#4b5563" stroke-width="1.4"/>
+    <line   id="d2-bar" x1="22" y1="20" x2="34" y2="20" stroke="#4b5563" stroke-width="2.2"/>
+    <polygon id="d2-tri" points="28,20 22,38 34,38" fill="none" stroke="#4b5563" stroke-width="1.5"/>
+    <line   id="d2-w2"  x1="28" y1="38" x2="28" y2="70" stroke="#4b5563" stroke-width="1.4"/>
+    <text id="t2-lb" x="-18" y="28" fill="#374151" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T2</text>
+    <text id="t2-st" x="-18" y="44" fill="#9ca3af" font-size="9"  font-family="monospace" text-anchor="end">OFF</text>
+    <text id="d2-lb" x="38"  y="14" fill="#4b5563" font-size="9"  font-family="monospace">D2</text>
+  </g>
+
+  <!-- ══ T3: translate(264,350) C=(280,350)  E=(280,420)=node_B ══ -->
+  <g id="t3-igbt" transform="translate(264,350)">
+    <line class="sw-line" x1="-14" y1="35" x2="-2"  y2="35" stroke="#374151" stroke-width="1.6"/>
+    <line class="sw-line" x1="0"   y1="14" x2="0"   y2="56" stroke="#374151" stroke-width="2.8"/>
+    <line class="sw-line" x1="6"   y1="14" x2="6"   y2="56" stroke="#374151" stroke-width="2.2"/>
+    <line class="sw-line" x1="6"   y1="20" x2="16"  y2="8"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="8"  x2="16"  y2="0"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="6"   y1="48" x2="16"  y2="60" stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="60" x2="16"  y2="70" stroke="#374151" stroke-width="2"/>
+    <polygon class="sw-line" points="10,52 16,60 10,58" fill="#374151"/>
+    <line   id="d3-w1"  x1="28" y1="0"  x2="28" y2="20" stroke="#4b5563" stroke-width="1.4"/>
+    <line   id="d3-bar" x1="22" y1="20" x2="34" y2="20" stroke="#4b5563" stroke-width="2.2"/>
+    <polygon id="d3-tri" points="28,20 22,38 34,38" fill="none" stroke="#4b5563" stroke-width="1.5"/>
+    <line   id="d3-w2"  x1="28" y1="38" x2="28" y2="70" stroke="#4b5563" stroke-width="1.4"/>
+    <text id="t3-lb" x="-18" y="28" fill="#374151" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T3</text>
+    <text id="t3-st" x="-18" y="44" fill="#9ca3af" font-size="9"  font-family="monospace" text-anchor="end">OFF</text>
+    <text id="d3-lb" x="38"  y="14" fill="#4b5563" font-size="9"  font-family="monospace">D3</text>
+  </g>
+
+  <!-- ══ T4: translate(264,440) C=(280,440)  E=(280,510) ══ -->
+  <g id="t4-igbt" transform="translate(264,440)">
+    <line class="sw-line" x1="-14" y1="35" x2="-2"  y2="35" stroke="#374151" stroke-width="1.6"/>
+    <line class="sw-line" x1="0"   y1="14" x2="0"   y2="56" stroke="#374151" stroke-width="2.8"/>
+    <line class="sw-line" x1="6"   y1="14" x2="6"   y2="56" stroke="#374151" stroke-width="2.2"/>
+    <line class="sw-line" x1="6"   y1="20" x2="16"  y2="8"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="8"  x2="16"  y2="0"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="6"   y1="48" x2="16"  y2="60" stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="60" x2="16"  y2="70" stroke="#374151" stroke-width="2"/>
+    <polygon class="sw-line" points="10,52 16,60 10,58" fill="#374151"/>
+    <line   id="d4-w1"  x1="28" y1="0"  x2="28" y2="20" stroke="#4b5563" stroke-width="1.4"/>
+    <line   id="d4-bar" x1="22" y1="20" x2="34" y2="20" stroke="#4b5563" stroke-width="2.2"/>
+    <polygon id="d4-tri" points="28,20 22,38 34,38" fill="none" stroke="#4b5563" stroke-width="1.5"/>
+    <line   id="d4-w2"  x1="28" y1="38" x2="28" y2="70" stroke="#4b5563" stroke-width="1.4"/>
+    <text id="t4-lb" x="-18" y="28" fill="#374151" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T4</text>
+    <text id="t4-st" x="-18" y="44" fill="#9ca3af" font-size="9"  font-family="monospace" text-anchor="end">OFF</text>
+    <text id="d4-lb" x="38"  y="14" fill="#4b5563" font-size="9"  font-family="monospace">D4</text>
+  </g>
+
+  <!-- ══ T5: translate(169,140) C=(185,140)=node_A  E=(185,210) ══
+       LEVEL with T2 — both collectors at y=140                    ══ -->
+  <g id="t5-igbt" transform="translate(169,140)">
+    <line class="sw-line" x1="-14" y1="35" x2="-2"  y2="35" stroke="#374151" stroke-width="1.6"/>
+    <line class="sw-line" x1="0"   y1="14" x2="0"   y2="56" stroke="#374151" stroke-width="2.8"/>
+    <line class="sw-line" x1="6"   y1="14" x2="6"   y2="56" stroke="#374151" stroke-width="2.2"/>
+    <line class="sw-line" x1="6"   y1="20" x2="16"  y2="8"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="8"  x2="16"  y2="0"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="6"   y1="48" x2="16"  y2="60" stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="60" x2="16"  y2="70" stroke="#374151" stroke-width="2"/>
+    <polygon class="sw-line" points="10,52 16,60 10,58" fill="#374151"/>
+    <line   id="d5-w1"  x1="28" y1="0"  x2="28" y2="20" stroke="#4b5563" stroke-width="1.4"/>
+    <line   id="d5-bar" x1="22" y1="20" x2="34" y2="20" stroke="#4b5563" stroke-width="2.2"/>
+    <polygon id="d5-tri" points="28,20 22,38 34,38" fill="none" stroke="#4b5563" stroke-width="1.5"/>
+    <line   id="d5-w2"  x1="28" y1="38" x2="28" y2="70" stroke="#4b5563" stroke-width="1.4"/>
+    <!-- T5 labels on left of gate; clamp switch label to the far left -->
+    <text id="t5-lb" x="-18" y="28" fill="#374151" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T5</text>
+    <text id="t5-st" x="-18" y="44" fill="#9ca3af" font-size="9"  font-family="monospace" text-anchor="end">OFF</text>
+    <text id="d5-lb" x="38"  y="14" fill="#4b5563" font-size="9"  font-family="monospace">D5</text>
+  </g>
+
+  <!-- ══ T6: translate(169,350) C=(185,350)  E=(185,420)=node_B ══
+       LEVEL with T3 — both emitters at y=420                      ══ -->
+  <g id="t6-igbt" transform="translate(169,350)">
+    <line class="sw-line" x1="-14" y1="35" x2="-2"  y2="35" stroke="#374151" stroke-width="1.6"/>
+    <line class="sw-line" x1="0"   y1="14" x2="0"   y2="56" stroke="#374151" stroke-width="2.8"/>
+    <line class="sw-line" x1="6"   y1="14" x2="6"   y2="56" stroke="#374151" stroke-width="2.2"/>
+    <line class="sw-line" x1="6"   y1="20" x2="16"  y2="8"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="8"  x2="16"  y2="0"  stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="6"   y1="48" x2="16"  y2="60" stroke="#374151" stroke-width="2"/>
+    <line class="sw-line" x1="16"  y1="60" x2="16"  y2="70" stroke="#374151" stroke-width="2"/>
+    <polygon class="sw-line" points="10,52 16,60 10,58" fill="#374151"/>
+    <line   id="d6-w1"  x1="28" y1="0"  x2="28" y2="20" stroke="#4b5563" stroke-width="1.4"/>
+    <line   id="d6-bar" x1="22" y1="20" x2="34" y2="20" stroke="#4b5563" stroke-width="2.2"/>
+    <polygon id="d6-tri" points="28,20 22,38 34,38" fill="none" stroke="#4b5563" stroke-width="1.5"/>
+    <line   id="d6-w2"  x1="28" y1="38" x2="28" y2="70" stroke="#4b5563" stroke-width="1.4"/>
+    <text id="t6-lb" x="-18" y="28" fill="#374151" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T6</text>
+    <text id="t6-st" x="-18" y="44" fill="#9ca3af" font-size="9"  font-family="monospace" text-anchor="end">OFF</text>
+    <text id="d6-lb" x="38"  y="14" fill="#4b5563" font-size="9"  font-family="monospace">D6</text>
+  </g>
+
+  <!-- ── Dynamic current paths ── -->
+  <g id="cp"></g>
+
+  </svg>
+  </div>
+
+  <!-- ══ Info Panel ══ -->
+  <div class="infopanel">
+    <table class="st">
+      <thead>
+        <tr><th>器件</th><th>位置</th><th>门极</th><th>导通方式</th></tr>
+      </thead>
+      <tbody id="tb"></tbody>
+    </table>
+    <div class="db">
+      <div class="tt" id="dt2"></div>
+      <div class="dc" id="dc"></div>
+    </div>
+    <div class="lg">
+      <div class="li"><div class="ld" style="background:#16a34a"></div>导通</div>
+      <div class="li"><div class="ld" style="background:#374151"></div>关断</div>
+      <div class="li"><div class="ld" style="background:#0891b2"></div>续流</div>
+      <div class="li">
+        <svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4 3"/></svg>
+        电流
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Flow path coordinates ──
+// node_A y=140, node_B y=420, O y=280, AC wire end x=390
+// T2/T5 midpoint y=175 (both bodies 140→210)
+// T3/T6 midpoint y=385 (both bodies 350→420)
+const FP = {
+  P_Ipos:  [[90,30],[280,30],[280,85],[280,140],[280,175],[280,210],[280,280],[390,280]],
+  P_Ineg:  [[390,280],[280,280],[280,210],[280,175],[280,140],[280,85],[280,30],[90,30]],
+  OU_Ipos: [[90,280],[185,280],[185,210],[185,175],[185,140],[280,140],[280,175],[280,210],[280,280],[390,280]],
+  OU_Ineg: [[390,280],[280,280],[280,210],[280,175],[280,140],[185,140],[185,175],[185,210],[185,280],[90,280]],
+  OL_Ipos: [[390,280],[280,280],[280,350],[280,385],[280,420],[185,420],[185,385],[185,350],[185,280],[90,280]],
+  OL_Ineg: [[90,280],[185,280],[185,350],[185,385],[185,420],[280,420],[280,385],[280,350],[280,280],[390,280]],
+  N_Ipos:  [[390,280],[280,280],[280,385],[280,420],[280,475],[280,560],[90,560]],
+  N_Ineg:  [[90,560],[280,560],[280,475],[280,420],[280,385],[280,280],[390,280]],
+};
+
+// ── State data: 4 quadrants × 3 sub-states ──
+const DATA = {
+  1: [
+    { id:'P',  label:'P · +Vdc/2',
+      sw:{T1:'ON',T2:'ON',T3:'OFF',T4:'OFF',T5:'OFF',T6:'ON'},
+      diodes:{}, flow:[FP.P_Ipos], vout:'+Vdc/2', vc:'p',
+      title:'Q1 · P态：Vout = +Vdc/2，io > 0',
+      desc:'电流从正母线 P 经 T1 → T2 → 交流输出端。T6 同时导通，将 node_B 钳位于中点 O，防止 T3/T4 承受超压。逆变正半周主功率输出状态。',
+      conduct:'T1, T2 (IGBT)；T6 钳位' },
+    { id:'OU', label:'OU · 零电平上路径',
+      sw:{T1:'OFF',T2:'ON',T3:'OFF',T4:'OFF',T5:'ON',T6:'OFF'},
+      diodes:{}, flow:[FP.OU_Ipos], vout:'0', vc:'o',
+      title:'Q1 · OU态：Vout = 0（上路径），io > 0',
+      desc:'电流从中点 O → T5 → node_A → T2 → 交流输出端。短换流回路，换流从 T1 转移到 T5，换流损耗小。',
+      conduct:'T5, T2 (IGBT)' },
+    { id:'OL', label:'OL · 零电平下路径',
+      sw:{T1:'ON',T2:'OFF',T3:'OFF',T4:'OFF',T5:'OFF',T6:'ON'},
+      diodes:{D3:1}, flow:[FP.OL_Ipos], vout:'0', vc:'o',
+      title:'Q1 · OL态：Vout = 0（下路径），io > 0',
+      desc:'电流从输出端 → D3（T3体二极管续流）→ node_B → T6 → 中点 O。与 OU 交替切换，主动均衡 T5/T6 损耗——ANPC 相对 NPC 的核心优势。',
+      conduct:'D3 续流，T6 (IGBT)' },
+  ],
+  2: [
+    { id:'P',  label:'P · +Vdc/2',
+      sw:{T1:'ON',T2:'ON',T3:'OFF',T4:'OFF',T5:'OFF',T6:'ON'},
+      diodes:{D1:1,D2:1}, flow:[FP.P_Ineg], vout:'+Vdc/2', vc:'p',
+      title:'Q2 · P态：Vout = +Vdc/2，io < 0',
+      desc:'电流从输出端流入 → D2 → D1 → 正母线 P。T1/T2 门极已开通但不承载电流，D1、D2 体二极管续流。整流正半周或回馈制动典型工况。',
+      conduct:'D1, D2 体二极管续流' },
+    { id:'OU', label:'OU · 零电平上路径',
+      sw:{T1:'OFF',T2:'ON',T3:'OFF',T4:'OFF',T5:'ON',T6:'OFF'},
+      diodes:{D2:1,D5:1}, flow:[FP.OU_Ineg], vout:'0', vc:'o',
+      title:'Q2 · OU态：Vout = 0（上路径），io < 0',
+      desc:'电流从输出端流入 → D2 → node_A → D5 → 中点 O。负电流经上侧体二极管回到中性点，T2/T5 门极开通但不承载电流。',
+      conduct:'D2, D5 体二极管续流' },
+    { id:'OL', label:'OL · 零电平下路径',
+      sw:{T1:'ON',T2:'OFF',T3:'ON',T4:'OFF',T5:'OFF',T6:'ON'},
+      diodes:{}, flow:[FP.OL_Ineg], vout:'0', vc:'o',
+      title:'Q2 · OL态：Vout = 0（下路径），io < 0',
+      desc:'电流从中点 O → T6 → node_B → T3 → 交流输出端。T3 开通为负电流提供正向导通通道。',
+      conduct:'T6, T3 (IGBT)' },
+  ],
+  3: [
+    { id:'N',  label:'N · −Vdc/2',
+      sw:{T1:'OFF',T2:'OFF',T3:'ON',T4:'ON',T5:'ON',T6:'OFF'},
+      diodes:{}, flow:[FP.N_Ineg], vout:'−Vdc/2', vc:'n',
+      title:'Q3 · N态：Vout = −Vdc/2，io < 0',
+      desc:'电流从负母线 N 经 T4 → T3 → 交流输出端。T5 同时导通，将 node_A 钳位于中点 O，防止 T1/T2 承受超压。逆变负半周，与 Q1-P 态完全对称。',
+      conduct:'T3, T4 (IGBT)；T5 钳位' },
+    { id:'OL', label:'OL · 零电平下路径',
+      sw:{T1:'OFF',T2:'OFF',T3:'ON',T4:'OFF',T5:'OFF',T6:'ON'},
+      diodes:{}, flow:[FP.OL_Ineg], vout:'0', vc:'o',
+      title:'Q3 · OL态：Vout = 0（下路径），io < 0',
+      desc:'电流从中点 O → T6 → node_B → T3 → 交流输出端。短换流回路，换流从 T4 转移到 T6，减小换流损耗。',
+      conduct:'T6, T3 (IGBT)' },
+    { id:'OU', label:'OU · 零电平上路径',
+      sw:{T1:'OFF',T2:'OFF',T3:'OFF',T4:'ON',T5:'ON',T6:'OFF'},
+      diodes:{D2:1,D5:1}, flow:[FP.OU_Ineg], vout:'0', vc:'o',
+      title:'Q3 · OU态：Vout = 0（上路径），io < 0',
+      desc:'电流从输出端 → D2 → node_A → D5 → 中点 O。负电流经上侧体二极管续流，与 OL 交替实现 T5/T6 损耗均衡。',
+      conduct:'D2, D5 体二极管续流' },
+  ],
+  4: [
+    { id:'N',  label:'N · −Vdc/2',
+      sw:{T1:'OFF',T2:'OFF',T3:'ON',T4:'ON',T5:'ON',T6:'OFF'},
+      diodes:{D3:1,D4:1}, flow:[FP.N_Ipos], vout:'−Vdc/2', vc:'n',
+      title:'Q4 · N态：Vout = −Vdc/2，io > 0',
+      desc:'电流从输出端流入 → D3 → D4 → 负母线 N。T3/T4 门极已开通但不承载电流，D3、D4 体二极管续流。整流负半周，与 Q2-P 态完全对称。',
+      conduct:'D3, D4 体二极管续流' },
+    { id:'OL', label:'OL · 零电平下路径',
+      sw:{T1:'OFF',T2:'OFF',T3:'ON',T4:'OFF',T5:'OFF',T6:'ON'},
+      diodes:{D3:1}, flow:[FP.OL_Ipos], vout:'0', vc:'o',
+      title:'Q4 · OL态：Vout = 0（下路径），io > 0',
+      desc:'电流从输出端 → D3（体二极管续流）→ node_B → T6 → 中点 O。正电流经下侧器件回到中性点。',
+      conduct:'D3 续流，T6 (IGBT)' },
+    { id:'OU', label:'OU · 零电平上路径',
+      sw:{T1:'OFF',T2:'ON',T3:'OFF',T4:'ON',T5:'ON',T6:'OFF'},
+      diodes:{}, flow:[FP.OU_Ipos], vout:'0', vc:'o',
+      title:'Q4 · OU态：Vout = 0（上路径），io > 0',
+      desc:'电流从中点 O → T5 → node_A → T2 → 交流输出端。与 OL 交替使用实现 T5/T6 损耗均衡分配。',
+      conduct:'T5, T2 (IGBT)' },
+  ],
+};
+
+const VC = {
+  p:{ m:'#d97706' },
+  o:{ m:'#059669' },
+  n:{ m:'#2563eb' },
+};
+const QDIR = { 1:'io &gt; 0 →', 2:'← io &lt; 0', 3:'← io &lt; 0', 4:'io &gt; 0 →' };
+const POS  = { T1:'外管', T2:'内管', T3:'内管', T4:'外管', T5:'上钳位', T6:'下钳位' };
+
+let curQ = 1, curSub = 0;
+
+// Color IGBT body lines only — never simultaneously with diode
+function ssw(n, on) {
+  const id = n.toLowerCase();
+  const g  = document.getElementById(id + '-igbt');
+  const st = document.getElementById(id + '-st');
+  const lb = document.getElementById(id + '-lb');
+  if (!g) return;
+  const c = on ? '#16a34a' : '#374151';
+  if (st) { st.textContent = on ? 'ON' : 'OFF'; st.setAttribute('fill', on ? '#16a34a' : '#9ca3af'); }
+  if (lb) lb.setAttribute('fill', c);
+  g.querySelectorAll('.sw-line').forEach(el => {
+    if (el.tagName.toLowerCase() === 'polygon') el.setAttribute('fill', c);
+    else el.setAttribute('stroke', c);
+  });
+}
+
+// Color body diode lines
+function sdi(n, active) {
+  const id = n.toLowerCase();
+  const c  = active ? '#0891b2' : '#4b5563';
+  ['tri','bar','lb','w1','w2'].forEach(s => {
+    const el = document.getElementById(id + '-' + s);
+    if (!el) return;
+    if (s === 'tri') {
+      el.setAttribute('stroke', c);
+      el.setAttribute('fill', active ? 'rgba(8,145,178,.18)' : 'none');
+    } else if (s === 'lb') {
+      el.setAttribute('fill', active ? '#0891b2' : '#4b5563');
+    } else {
+      el.setAttribute('stroke', c);
+    }
+  });
+}
+
+// Draw animated current flow with direction arrows
+function dfl(paths) {
+  const g = document.getElementById('cp');
+  g.innerHTML = '';
+  paths.forEach(pts => {
+    const ps = pts.map(p => p.join(',')).join(' ');
+    const gl = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    gl.setAttribute('points', ps); gl.classList.add('fg'); g.appendChild(gl);
+    const ln = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    ln.setAttribute('points', ps); ln.classList.add('fl'); g.appendChild(ln);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+      if (Math.hypot(x2 - x1, y2 - y1) < 38) continue;
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      const a  = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+      const ar = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      ar.setAttribute('points', '0,-5 10,0 0,5');
+      ar.setAttribute('transform', `translate(${mx},${my}) rotate(${a})`);
+      ar.setAttribute('fill', '#f59e0b');
+      ar.setAttribute('opacity', '.9');
+      g.appendChild(ar);
+    }
+  });
+}
+
+function buildSubBtns() {
+  const row = document.getElementById('subRow');
+  row.innerHTML = '';
+  DATA[curQ].forEach((s, i) => {
+    const b = document.createElement('div');
+    b.className = 'sub-btn' + (i === curSub ? ' active' : '');
+    b.textContent = s.label;
+    b.onclick = () => { curSub = i; render(); };
+    row.appendChild(b);
+  });
+}
+
+function render() {
+  const s = DATA[curQ][curSub];
+
+  document.querySelectorAll('.quad-btn').forEach(b =>
+    b.classList.toggle('active', +b.dataset.q === curQ));
+  document.querySelectorAll('.sub-btn').forEach((b, i) =>
+    b.classList.toggle('active', i === curSub));
+
+  document.getElementById('ioLabel').innerHTML = QDIR[curQ];
+
+  // KEY FIX: IGBT lines green ONLY if gate ON AND its diode NOT active
+  // This ensures IGBT and diode are NEVER simultaneously highlighted
+  ['T1','T2','T3','T4','T5','T6'].forEach(n => {
+    const gateOn = s.sw[n] === 'ON';
+    const dActive = s.diodes && s.diodes['D' + n[1]];
+    ssw(n, gateOn && !dActive);   // IGBT green only when it's the conducting element
+  });
+
+  // Diodes: reset all then activate highlighted ones
+  ['D1','D2','D3','D4','D5','D6'].forEach(d => sdi(d, false));
+  if (s.diodes) Object.keys(s.diodes).forEach(d => sdi(d, true));
+
+  // Vout text
+  const vt = document.getElementById('vt');
+  vt.textContent = s.vout;
+  vt.setAttribute('fill', VC[s.vc].m);
+
+  // Switch table
+  const tb = document.getElementById('tb');
+  tb.innerHTML = '';
+  ['T1','T2','T3','T4','T5','T6'].forEach(n => {
+    const on = s.sw[n] === 'ON';
+    const dn = 'D' + n[1];
+    const dA = s.diodes && s.diodes[dn];
+    // Conduct: diode OR IGBT — never both
+    let conduct = '—';
+    if (dA)        conduct = `<span style="color:#0891b2">${dn} 续流</span>`;
+    else if (on)   conduct = `<span style="color:#16a34a">IGBT</span>`;
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td style="font-weight:600">${n}</td>` +
+      `<td style="color:var(--text-dim);font-size:10px">${POS[n]}</td>` +
+      `<td class="${on ? 'so' : 'sf2'}">${s.sw[n]}</td>` +
+      `<td style="font-size:10px">${conduct}</td>`;
+    tb.appendChild(tr);
+  });
+
+  document.getElementById('dt2').textContent = s.title;
+  document.getElementById('dc').textContent   = s.desc;
+
+  dfl(s.flow);
+}
+
+function setQ(q) { curQ = q; curSub = 0; buildSubBtns(); render(); }
+
+buildSubBtns();
+render();
+</script>
+</body>
+</html>

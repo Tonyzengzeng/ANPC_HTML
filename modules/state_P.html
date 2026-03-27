@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#fff;font-family:"Microsoft YaHei",sans-serif;display:flex;flex-direction:column;align-items:center;height:100vh;overflow:hidden;padding:6px 0 0}
+.ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:4px}
+button{padding:5px 14px;border:none;border-radius:16px;cursor:pointer;font-size:12px;font-weight:600;transition:all .2s}
+.b-pos{background:#e74c3c;color:#fff}.b-neg{background:#3498db;color:#fff}
+.b-auto{background:#1a1a2e;color:#fff}.b-auto.on{background:#27ae60}
+.badge{padding:3px 12px;border-radius:12px;font-size:12px;font-weight:700;background:#e74c3c;color:#fff}
+.spd{font-size:11px;color:#666;display:flex;align-items:center;gap:5px}
+input[type=range]{width:70px}
+.info{font-size:11px;color:#555;text-align:center;min-height:15px}
+svg{flex-shrink:0}
+@keyframes march{to{stroke-dashoffset:-24}}
+.fl{stroke-dasharray:10 6;stroke-linecap:round;stroke-linejoin:round;fill:none;animation:march .5s linear infinite}
+.fg{stroke-linecap:round;stroke-linejoin:round;fill:none;opacity:.12}
+</style>
+</head>
+<body>
+<div class="ctrl">
+  <span class="badge">P 态 — 正电平 +Vdc/2</span>
+  <button class="b-pos" onclick="setDir('pos')">▶ 正向电流 i &gt; 0</button>
+  <button class="b-neg" onclick="setDir('neg')">◀ 反向电流 i &lt; 0</button>
+  <button class="b-auto" id="btnA" onclick="toggleAuto()">⏵ 自动</button>
+  <span class="spd">速度<input type="range" id="spd" min="0.3" max="3" step="0.1" value="1" oninput="setSpd(this.value)"></span>
+</div>
+<div class="info" id="info">正向电流：P → T1 → T2 → AC输出，T6 钳位 node_B 至 O 电位</div>
+
+<svg viewBox="0 0 520 590" width="440" height="374">
+<defs>
+  <marker id="arrR" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#e74c3c"/></marker>
+  <marker id="arrB" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#3498db"/></marker>
+  <marker id="arrO" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#f39c12"/></marker>
+</defs>
+
+<!-- ══ DC 母线 ══ -->
+<line x1="80" y1="30" x2="260" y2="30" stroke="#555" stroke-width="2.5"/>
+<line x1="80" y1="555" x2="260" y2="555" stroke="#555" stroke-width="2.5"/>
+<line x1="80" y1="30"  x2="80" y2="555" stroke="#888" stroke-width="1.8"/>
+<text x="14" y="35"  fill="#c0392b" font-size="12" font-family="monospace" font-weight="700">+Vdc/2</text>
+<text x="14" y="560" fill="#2980b9" font-size="12" font-family="monospace" font-weight="700">−Vdc/2</text>
+
+<!-- 电容 C1 -->
+<line x1="68" y1="262" x2="92" y2="262" stroke="#888" stroke-width="3"/>
+<line x1="68" y1="272" x2="92" y2="272" stroke="#888" stroke-width="3"/>
+<text x="50" y="270" fill="#888" font-size="9" font-family="monospace" text-anchor="end">C1</text>
+<!-- 电容 C2 -->
+<line x1="68" y1="284" x2="92" y2="284" stroke="#888" stroke-width="3"/>
+<line x1="68" y1="294" x2="92" y2="294" stroke="#888" stroke-width="3"/>
+<text x="50" y="292" fill="#888" font-size="9" font-family="monospace" text-anchor="end">C2</text>
+
+<!-- O 中性点 -->
+<circle cx="80" cy="280" r="5" fill="#27ae60"/>
+<text x="26" y="284" fill="#27ae60" font-size="12" font-family="monospace" font-weight="700">O</text>
+<line x1="80" y1="280" x2="170" y2="280" stroke="#555" stroke-width="1.8"/>
+
+<!-- ══ 主柱导线 ══ -->
+<line x1="260" y1="30"  x2="260" y2="50"  stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="120" x2="260" y2="130" stroke="#555" stroke-width="1.8"/>
+<circle cx="260" cy="130" r="3.5" fill="#555"/>
+<line x1="170" y1="130" x2="260" y2="130" stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="130" x2="260" y2="140" stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="210" x2="260" y2="280" stroke="#555" stroke-width="1.8"/>
+<circle cx="260" cy="280" r="5"   fill="#555"/>
+<line x1="260" y1="280" x2="450" y2="280" stroke="#555" stroke-width="2"/>
+<text x="460" y="276" fill="#555" font-size="13" font-family="monospace" font-weight="700">AC</text>
+<text x="400" y="296" fill="#e74c3c" font-size="10" font-family="monospace" id="ioLbl">io &gt; 0 →</text>
+<line x1="260" y1="280" x2="260" y2="350" stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="420" x2="260" y2="430" stroke="#555" stroke-width="1.8"/>
+<circle cx="260" cy="430" r="3.5" fill="#555"/>
+<line x1="170" y1="430" x2="260" y2="430" stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="430" x2="260" y2="440" stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="510" x2="260" y2="555" stroke="#555" stroke-width="1.8"/>
+
+<!-- 钳位柱导线 -->
+<line x1="170" y1="130" x2="170" y2="155" stroke="#555" stroke-width="1.8"/>
+<line x1="170" y1="225" x2="170" y2="280" stroke="#555" stroke-width="1.8"/>
+<line x1="170" y1="280" x2="170" y2="345" stroke="#555" stroke-width="1.8"/>
+<line x1="170" y1="415" x2="170" y2="430" stroke="#555" stroke-width="1.8"/>
+
+<!-- ══ T1 (S1) — ON ══ translate(244,50) C=(260,50) E=(260,120) -->
+<g id="T1" transform="translate(244,50)">
+  <rect id="T1bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(34,197,94,.1)" stroke="#22c55e" stroke-width="1.6"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#333" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#333" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#333" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#333" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#333" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#333"/>
+  <line id="T1d1" x1="28" y1="0"  x2="28" y2="22" stroke="#bbb" stroke-width="1.3"/>
+  <line id="T1d2" x1="22" y1="22" x2="34" y2="22" stroke="#bbb" stroke-width="2"/>
+  <polygon id="T1d3" points="28,22 22,40 34,40" fill="none" stroke="#bbb" stroke-width="1.4"/>
+  <line id="T1d4" x1="28" y1="40" x2="28" y2="70" stroke="#bbb" stroke-width="1.3"/>
+  <text x="37" y="36" fill="#bbb" font-size="8" font-family="monospace">D1</text>
+  <text id="T1lbl" x="-22" y="38" fill="#22c55e" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T1</text>
+  <text id="T1st"  x="-22" y="52" fill="#22c55e" font-size="10" font-family="monospace" text-anchor="end">ON</text>
+  <text x="-22" y="64" fill="#999" font-size="8" text-anchor="end">外管</text>
+</g>
+
+<!-- ══ T2 (S2) — ON ══ translate(244,140) C=(260,140) E=(260,210) -->
+<g id="T2" transform="translate(244,140)">
+  <rect id="T2bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(34,197,94,.1)" stroke="#22c55e" stroke-width="1.6"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#333" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#333" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#333" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#333" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#333" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#333"/>
+  <line id="T2d1" x1="28" y1="0"  x2="28" y2="22" stroke="#bbb" stroke-width="1.3"/>
+  <line id="T2d2" x1="22" y1="22" x2="34" y2="22" stroke="#bbb" stroke-width="2"/>
+  <polygon id="T2d3" points="28,22 22,40 34,40" fill="none" stroke="#bbb" stroke-width="1.4"/>
+  <line id="T2d4" x1="28" y1="40" x2="28" y2="70" stroke="#bbb" stroke-width="1.3"/>
+  <text x="37" y="36" fill="#bbb" font-size="8" font-family="monospace">D2</text>
+  <text id="T2lbl" x="-22" y="38" fill="#22c55e" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T2</text>
+  <text id="T2st"  x="-22" y="52" fill="#22c55e" font-size="10" font-family="monospace" text-anchor="end">ON</text>
+  <text x="-22" y="64" fill="#999" font-size="8" text-anchor="end">内管</text>
+</g>
+
+<!-- ══ T3 (S3) — OFF ══ translate(244,350) C=(260,350) E=(260,420) -->
+<g id="T3" transform="translate(244,350)">
+  <rect id="T3bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(75,85,99,.06)" stroke="#9ca3af" stroke-width="1.4"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#aaa" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#aaa" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#aaa" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#aaa" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#aaa" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#aaa" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#aaa" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#aaa"/>
+  <line x1="28" y1="0"  x2="28" y2="22" stroke="#ccc" stroke-width="1.3"/>
+  <line x1="22" y1="22" x2="34" y2="22" stroke="#ccc" stroke-width="2"/>
+  <polygon points="28,22 22,40 34,40" fill="none" stroke="#ccc" stroke-width="1.4"/>
+  <line x1="28" y1="40" x2="28" y2="70" stroke="#ccc" stroke-width="1.3"/>
+  <text x="37" y="36" fill="#ccc" font-size="8" font-family="monospace">D3</text>
+  <text x="-22" y="38" fill="#9ca3af" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T3</text>
+  <text x="-22" y="52" fill="#9ca3af" font-size="10" font-family="monospace" text-anchor="end">OFF</text>
+  <text x="-22" y="64" fill="#ccc" font-size="8" text-anchor="end">内管</text>
+</g>
+
+<!-- ══ T4 (S4) — OFF ══ translate(244,440) -->
+<g id="T4" transform="translate(244,440)">
+  <rect id="T4bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(75,85,99,.06)" stroke="#9ca3af" stroke-width="1.4"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#aaa" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#aaa" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#aaa" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#aaa" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#aaa" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#aaa" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#aaa" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#aaa"/>
+  <line x1="28" y1="0"  x2="28" y2="22" stroke="#ccc" stroke-width="1.3"/>
+  <line x1="22" y1="22" x2="34" y2="22" stroke="#ccc" stroke-width="2"/>
+  <polygon points="28,22 22,40 34,40" fill="none" stroke="#ccc" stroke-width="1.4"/>
+  <line x1="28" y1="40" x2="28" y2="70" stroke="#ccc" stroke-width="1.3"/>
+  <text x="37" y="36" fill="#ccc" font-size="8" font-family="monospace">D4</text>
+  <text x="-22" y="38" fill="#9ca3af" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T4</text>
+  <text x="-22" y="52" fill="#9ca3af" font-size="10" font-family="monospace" text-anchor="end">OFF</text>
+  <text x="-22" y="64" fill="#ccc" font-size="8" text-anchor="end">外管</text>
+</g>
+
+<!-- ══ T5 (S5) — OFF ══ translate(154,155) C=(170,155) E=(170,225) -->
+<g id="T5" transform="translate(154,155)">
+  <rect id="T5bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(75,85,99,.06)" stroke="#9ca3af" stroke-width="1.4"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#aaa" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#aaa" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#aaa" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#aaa" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#aaa" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#aaa" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#aaa" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#aaa"/>
+  <line x1="28" y1="0"  x2="28" y2="22" stroke="#ccc" stroke-width="1.3"/>
+  <line x1="22" y1="22" x2="34" y2="22" stroke="#ccc" stroke-width="2"/>
+  <polygon points="28,22 22,40 34,40" fill="none" stroke="#ccc" stroke-width="1.4"/>
+  <line x1="28" y1="40" x2="28" y2="70" stroke="#ccc" stroke-width="1.3"/>
+  <text x="37" y="36" fill="#ccc" font-size="8" font-family="monospace">D5</text>
+  <text id="T5lbl" x="112" y="38" fill="#9ca3af" font-size="12" font-family="Microsoft YaHei" font-weight="700">T5</text>
+  <text id="T5st"  x="112" y="52" fill="#9ca3af" font-size="10" font-family="monospace">OFF</text>
+  <text x="112" y="64" fill="#ccc" font-size="8">上钳位</text>
+</g>
+
+<!-- ══ T6 (S6) — ON ══ translate(154,345) C=(170,345) E=(170,415) -->
+<g id="T6" transform="translate(154,345)">
+  <rect id="T6bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(34,197,94,.1)" stroke="#22c55e" stroke-width="1.6"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#333" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#333" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#333" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#333" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#333" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#333"/>
+  <line id="T6d1" x1="28" y1="0"  x2="28" y2="22" stroke="#bbb" stroke-width="1.3"/>
+  <line id="T6d2" x1="22" y1="22" x2="34" y2="22" stroke="#bbb" stroke-width="2"/>
+  <polygon id="T6d3" points="28,22 22,40 34,40" fill="none" stroke="#bbb" stroke-width="1.4"/>
+  <line id="T6d4" x1="28" y1="40" x2="28" y2="70" stroke="#bbb" stroke-width="1.3"/>
+  <text x="37" y="36" fill="#bbb" font-size="8" font-family="monospace">D6</text>
+  <text id="T6lbl" x="112" y="38" fill="#22c55e" font-size="12" font-family="Microsoft YaHei" font-weight="700">T6</text>
+  <text id="T6st"  x="112" y="52" fill="#22c55e" font-size="10" font-family="monospace">ON</text>
+  <text x="112" y="64" fill="#999" font-size="8">下钳位</text>
+</g>
+
+<!-- 电压指示 -->
+<g transform="translate(390,310)">
+  <rect x="-38" y="-14" width="80" height="28" rx="6" fill="rgba(231,76,60,.1)" stroke="#e74c3c" stroke-width="1.5"/>
+  <text x="2" y="4" fill="#e74c3c" font-size="12" font-family="monospace" font-weight="700" text-anchor="middle">+Vdc/2</text>
+</g>
+
+<!-- ══ 电流路径 ══ -->
+<!-- 正向主路径 (P→T1→T2→AC) -->
+<polyline id="pfg" class="fg" stroke="#e74c3c" stroke-width="8"
+  points="80,30 260,30 260,85 260,130 260,175 260,280 430,280"/>
+<polyline id="pfl" class="fl" stroke="#e74c3c" stroke-width="3"
+  points="80,30 260,30 260,85 260,130 260,175 260,280 430,280"
+  marker-end="url(#arrR)"/>
+
+<!-- T6钳位路径 (O→T6→nodeB) -->
+<polyline id="t6g" class="fg" stroke="#f39c12" stroke-width="6"
+  points="80,280 170,280 170,345 170,390 170,415 170,430 260,430"/>
+<polyline id="t6l" class="fl" stroke="#f39c12" stroke-width="2.5"
+  points="80,280 170,280 170,345 170,390 170,415 170,430 260,430"
+  marker-end="url(#arrO)"/>
+
+<!-- 反向路径 (AC→D2→D1→P，经体二极管) -->
+<polyline id="nfg" class="fg" stroke="#3498db" stroke-width="8"
+  points="430,280 260,280 260,175 260,130 260,85 260,30 80,30" style="display:none"/>
+<polyline id="nfl" class="fl" stroke="#3498db" stroke-width="3"
+  points="430,280 260,280 260,175 260,130 260,85 260,30 80,30"
+  marker-end="url(#arrB)" style="display:none"/>
+</svg>
+
+<script>
+var dir='pos', auto=false, timer=null;
+function setSpd(v){
+  var d=(1/parseFloat(v)).toFixed(2)+'s';
+  document.querySelectorAll('.fl').forEach(function(e){e.style.animationDuration=d});
+}
+function setDir(d){
+  dir=d;
+  var pos=d==='pos';
+  ['pfg','pfl','t6g','t6l'].forEach(function(id){
+    document.getElementById(id).style.display=pos?'':'none';
+  });
+  ['nfg','nfl'].forEach(function(id){
+    document.getElementById(id).style.display=pos?'none':'';
+  });
+  document.getElementById('ioLbl').textContent=pos?'io > 0 →':'← io < 0';
+  document.getElementById('info').textContent=pos
+    ?'正向电流：P → T1 → T2 → AC输出，T6 钳位 node_B 至 O 电位'
+    :'反向电流：AC → D2(T2体二极管) → D1(T1体二极管) → P 母线';
+  // 反向时体二极管高亮
+  var dc='#06b6d4', doff='#bbb';
+  ['T1d1','T1d2','T1d3','T1d4','T2d1','T2d2','T2d3','T2d4'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.setAttribute('stroke',pos?doff:dc);
+  });
+  ['T1d3','T2d3'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.setAttribute('fill',pos?'none':'rgba(6,182,212,.15)');
+  });
+}
+function toggleAuto(){
+  auto=!auto;
+  var btn=document.getElementById('btnA');
+  if(auto){btn.textContent='⏸ 停';btn.classList.add('on');
+    timer=setInterval(function(){setDir(dir==='pos'?'neg':'pos')},2000);
+  }else{btn.textContent='⏵ 自动';btn.classList.remove('on');clearInterval(timer);}
+}
+setDir('pos');
+</script>
+</body>
+</html>

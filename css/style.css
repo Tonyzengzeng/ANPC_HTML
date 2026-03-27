@@ -1,0 +1,393 @@
+/* ===== 全局重置 ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: "Microsoft YaHei", "微软雅黑", "SimSun", "宋体", sans-serif;
+  font-size: 14px;
+  color: #333333;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ===== 顶部标题栏 ===== */
+#top-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  background: #1a1a2e;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  gap: 16px;
+}
+
+#top-bar .doc-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+#top-bar .separator {
+  color: #6a7fbd;
+  font-size: 18px;
+}
+
+#top-bar .chapter-title {
+  font-size: 13px;
+  color: #b0bde8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== 布局容器 ===== */
+#layout {
+  display: flex;
+  margin-top: 52px;
+  height: calc(100vh - 52px);
+  overflow: hidden;
+}
+
+/* ===== 左侧目录栏 ===== */
+#sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: #f5f5f5;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 0 24px;
+  flex-shrink: 0;
+}
+
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+
+.toc-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: #999;
+  letter-spacing: 1.5px;
+  padding: 0 16px 10px;
+  text-transform: uppercase;
+}
+
+/* 一级目录项（章） */
+.toc-chapter {
+  cursor: pointer;
+  user-select: none;
+}
+
+.toc-chapter-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  transition: background 0.15s;
+}
+
+.toc-chapter-title:hover { background: #e8e8e8; }
+
+.toc-chapter-title.active {
+  color: #1a73e8;
+  background: #e8f0fe;
+}
+
+.toc-arrow {
+  font-size: 10px;
+  transition: transform 0.2s;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.toc-chapter.open .toc-arrow { transform: rotate(90deg); }
+
+/* 子目录列表 */
+.toc-children {
+  display: none;
+  overflow: hidden;
+}
+
+.toc-chapter.open .toc-children { display: block; }
+
+/* 二级目录项（节） */
+.toc-section {
+  display: block;
+  padding: 6px 16px 6px 32px;
+  font-size: 12.5px;
+  color: #555;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  border-left: 3px solid transparent;
+  line-height: 1.4;
+}
+
+.toc-section:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.toc-section.active {
+  color: #1a73e8;
+  background: #e8f0fe;
+  border-left-color: #1a73e8;
+  font-weight: 600;
+}
+
+/* ===== 右侧内容区 ===== */
+#content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 0 60px;
+  background: #f9f9f9;
+}
+
+#content::-webkit-scrollbar { width: 8px; }
+#content::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+#content::-webkit-scrollbar-track { background: #f0f0f0; }
+
+/* 内容居中容器（Word风格） */
+.doc-page {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #ffffff;
+  min-height: calc(100vh - 52px);
+  padding: 40px 60px 80px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.08);
+}
+
+/* ===== 文档标题和章节标题 ===== */
+.doc-main-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #1a1a2e;
+  text-align: center;
+  padding: 20px 0 8px;
+  letter-spacing: 2px;
+}
+
+.doc-subtitle {
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+  padding-bottom: 32px;
+  border-bottom: 2px solid #1a1a2e;
+  margin-bottom: 40px;
+}
+
+/* H1 章标题 */
+.chapter-heading {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 48px 0 20px;
+  padding: 12px 0 12px 16px;
+  border-left: 5px solid #1a73e8;
+  background: #f0f4ff;
+  border-radius: 0 6px 6px 0;
+  scroll-margin-top: 20px;
+}
+
+/* H2 节标题 */
+.section-heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 32px 0 14px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #dde4f5;
+  scroll-margin-top: 20px;
+}
+
+/* H3 小节标题 */
+.subsection-heading {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #333;
+  margin: 22px 0 10px;
+  scroll-margin-top: 20px;
+}
+
+/* ===== 正文段落 ===== */
+.doc-page p {
+  font-size: 14px;
+  line-height: 1.9;
+  color: #333333;
+  margin-bottom: 14px;
+  text-indent: 2em;
+}
+
+/* 无缩进段落 */
+.doc-page p.no-indent { text-indent: 0; }
+
+/* 强调 */
+.doc-page strong { color: #1a1a2e; }
+.doc-page em { color: #1a73e8; font-style: normal; font-weight: 600; }
+
+/* ===== 表格 ===== */
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 13px;
+}
+
+.doc-table th {
+  background: #1a1a2e;
+  color: #fff;
+  padding: 10px 14px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.doc-table td {
+  border: 1px solid #ddd;
+  padding: 9px 14px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.doc-table tr:nth-child(even) td { background: #f7f8ff; }
+.doc-table tr:hover td { background: #e8f0fe; }
+
+.td-on {
+  color: #d35400;
+  font-weight: 700;
+}
+
+.td-off { color: #999; }
+
+/* ===== 交互模块容器 ===== */
+.module-box {
+  margin: 28px 0;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.module-box-header {
+  background: #1a1a2e;
+  color: #fff;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.module-box-header .icon { font-size: 15px; }
+
+.module-box iframe {
+  display: block;
+  width: 100%;
+  height: 640px;
+  border: none;
+  background: #fff;
+}
+
+.module-caption {
+  text-align: center;
+  font-size: 12.5px;
+  color: #666;
+  padding: 8px 16px;
+  background: #fafafa;
+  border-top: 1px solid #e8e8e8;
+  font-style: italic;
+}
+
+/* ===== 信息框 ===== */
+.info-box {
+  background: #e8f0fe;
+  border-left: 4px solid #1a73e8;
+  border-radius: 0 6px 6px 0;
+  padding: 14px 18px;
+  margin: 18px 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+.info-box.warning {
+  background: #fff3e0;
+  border-left-color: #f57c00;
+}
+
+.info-box.tip {
+  background: #e8f5e9;
+  border-left-color: #388e3c;
+}
+
+.info-box-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-box p {
+  text-indent: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* ===== 列表 ===== */
+.doc-page ul, .doc-page ol {
+  padding-left: 2em;
+  margin: 10px 0 14px;
+  line-height: 1.9;
+}
+
+.doc-page li { margin-bottom: 4px; }
+
+/* ===== 损耗分析色块 ===== */
+.loss-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.loss-bar-fill {
+  height: 22px;
+  border-radius: 3px;
+  min-width: 20px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  transition: width 0.6s ease;
+}
+
+/* ===== 章节分隔线 ===== */
+.chapter-divider {
+  border: none;
+  border-top: 1px dashed #ddd;
+  margin: 40px 0;
+}
+
+/* ===== 响应式（备用） ===== */
+@media (max-width: 1200px) {
+  .doc-page { padding: 30px 40px 60px; }
+}

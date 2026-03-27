@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANPC三电平 四象限工作状态分析</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+  :root{
+    --bg:#0a0e17;--surface:#111827;--surface2:#1a2235;--border:#2a3650;
+    --text:#e2e8f0;--text-dim:#8899b4;
+    --accent-p:#f59e0b;--accent-o:#10b981;--accent-n:#3b82f6;
+    --q1:#f59e0b;--q2:#a855f7;--q3:#3b82f6;--q4:#ef4444;
+    --green:#22c55e;--cyan:#06b6d4;--purple:#a855f7;
+    --current-flow:#fbbf24;--on-color:#22c55e;--off-color:#4b5563;
+    --wire:#3a4a6b;--dev:#b0bdd0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Noto Sans SC',sans-serif;min-height:100vh;overflow-x:hidden}
+  .header{text-align:center;padding:24px 20px 12px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#111827,var(--bg))}
+  .header h1{font-size:20px;font-weight:700;letter-spacing:1px;background:linear-gradient(135deg,var(--q1),var(--q2),var(--q3),var(--q4));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .header p{color:var(--text-dim);font-size:12px;margin-top:4px;font-weight:300}
+  .mc{max-width:1240px;margin:0 auto;padding:12px 16px}
+
+  /* Quadrant selector */
+  .quad-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 6px;max-width:700px;margin-left:auto;margin-right:auto}
+  .quad-btn{padding:10px 8px;border-radius:8px;border:2px solid var(--border);background:var(--surface);cursor:pointer;transition:all .25s;text-align:center;font-family:'JetBrains Mono',monospace}
+  .quad-btn:hover{transform:translateY(-1px);border-color:var(--text-dim)}
+  .quad-btn.active{transform:scale(1.02)}
+  .quad-btn .qlabel{font-size:14px;font-weight:700;margin-bottom:2px}
+  .quad-btn .qinfo{font-size:11px;color:var(--text-dim);font-weight:400}
+  .quad-btn[data-q="1"]{color:var(--q1)}.quad-btn[data-q="1"].active{border-color:var(--q1);background:rgba(245,158,11,.1);box-shadow:0 0 16px rgba(245,158,11,.15)}
+  .quad-btn[data-q="2"]{color:var(--q2)}.quad-btn[data-q="2"].active{border-color:var(--q2);background:rgba(168,85,247,.1);box-shadow:0 0 16px rgba(168,85,247,.15)}
+  .quad-btn[data-q="3"]{color:var(--q3)}.quad-btn[data-q="3"].active{border-color:var(--q3);background:rgba(59,130,246,.1);box-shadow:0 0 16px rgba(59,130,246,.15)}
+  .quad-btn[data-q="4"]{color:var(--q4)}.quad-btn[data-q="4"].active{border-color:var(--q4);background:rgba(239,68,68,.1);box-shadow:0 0 16px rgba(239,68,68,.15)}
+
+  /* Sub-state buttons row */
+  .sub-row{display:flex;justify-content:center;gap:8px;margin:10px 0 8px;flex-wrap:wrap}
+  .sub-btn{padding:7px 18px;border-radius:6px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+  .sub-btn:hover{border-color:var(--text-dim);color:var(--text)}
+  .sub-btn.active{border-color:var(--accent-o);background:rgba(16,185,129,.12);color:var(--accent-o)}
+
+  .cg{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-top:6px}
+  @media(max-width:860px){.cg{grid-template-columns:1fr}}
+  .pn{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .ph{padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:500;color:var(--text-dim);background:var(--surface2);display:flex;align-items:center;gap:8px}
+  .ph .dt{width:7px;height:7px;border-radius:50%;background:var(--accent-o)}
+  .pb{padding:12px}
+  .cc{width:100%;display:flex;justify-content:center;align-items:center;min-height:480px}
+  .cc svg{width:100%;max-width:520px;height:auto}
+
+  .st{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:12px;margin-bottom:10px}
+  .st th{padding:6px 4px;text-align:center;color:var(--text-dim);font-weight:500;font-size:10px;border-bottom:1px solid var(--border)}
+  .st td{padding:6px 4px;text-align:center;border-bottom:1px solid rgba(42,54,80,.4)}
+  .so{color:var(--on-color);font-weight:700}.sf2{color:var(--off-color)}
+
+  .db{background:var(--surface2);border-radius:8px;padding:11px;margin-top:8px;border-left:3px solid var(--accent-o);line-height:1.65;font-size:12px}
+  .db .tt{font-weight:700;font-size:13px;margin-bottom:4px}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .tag{display:inline-flex;align-items:center;gap:3px;border-radius:4px;padding:2px 8px;font-size:11px;font-family:'JetBrains Mono',monospace}
+  .tag-v{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);color:#fbbf24}
+  .tag-i{background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.25);color:#06b6d4}
+  .tag-cl{background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.25);color:var(--purple)}
+
+  .lg{display:flex;gap:14px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+  .li{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-dim)}
+  .ld{width:8px;height:8px;border-radius:2px}
+  @keyframes march{to{stroke-dashoffset:-24}}
+  .fl{stroke:var(--current-flow);stroke-width:3;stroke-dasharray:10 6;stroke-linecap:round;stroke-linejoin:round;fill:none;animation:march .45s linear infinite;filter:drop-shadow(0 0 4px rgba(251,191,36,.45))}
+  .fg{stroke:var(--current-flow);stroke-width:7;stroke-linecap:round;stroke-linejoin:round;fill:none;opacity:.1}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>ANPC 三电平拓扑 · 四象限工作状态分析</h1>
+  <p>选择象限 → 查看各电平状态下的导通器件与电流路径</p>
+</div>
+<div class="mc">
+  <!-- Quadrant selector -->
+  <div class="quad-grid">
+    <div class="quad-btn active" data-q="1" onclick="setQ(1)"><div class="qlabel">Q1: V &gt; 0, I &gt; 0</div><div class="qinfo">正电压正电流 · 逆变正半周</div></div>
+    <div class="quad-btn" data-q="2" onclick="setQ(2)"><div class="qlabel">Q2: V &gt; 0, I &lt; 0</div><div class="qinfo">正电压负电流 · 整流正半周</div></div>
+    <div class="quad-btn" data-q="4" onclick="setQ(4)"><div class="qlabel">Q4: V &lt; 0, I &gt; 0</div><div class="qinfo">负电压正电流 · 整流负半周</div></div>
+    <div class="quad-btn" data-q="3" onclick="setQ(3)"><div class="qlabel">Q3: V &lt; 0, I &lt; 0</div><div class="qinfo">负电压负电流 · 逆变负半周</div></div>
+  </div>
+  <!-- Sub-state buttons -->
+  <div class="sub-row" id="subRow"></div>
+
+  <div class="cg">
+    <div class="pn">
+      <div class="ph"><div class="dt"></div>ANPC 桥臂拓扑 · 电流路径</div>
+      <div class="pb"><div class="cc">
+        <svg viewBox="0 0 520 600" xmlns="http://www.w3.org/2000/svg">
+        <!-- DC BUS -->
+        <line x1="80" y1="30" x2="260" y2="30" stroke="var(--wire)" stroke-width="2.5"/>
+        <line x1="80" y1="560" x2="260" y2="560" stroke="var(--wire)" stroke-width="2.5"/>
+        <line x1="80" y1="30" x2="80" y2="560" stroke="var(--wire)" stroke-width="2"/>
+        <text x="14" y="35" fill="#f59e0b" font-size="12" font-family="JetBrains Mono" font-weight="700">+Vdc/2</text>
+        <text x="14" y="565" fill="#3b82f6" font-size="12" font-family="JetBrains Mono" font-weight="700">−Vdc/2</text>
+        <!-- Caps -->
+        <line x1="68" y1="268" x2="92" y2="268" stroke="#6b7280" stroke-width="3"/>
+        <line x1="68" y1="276" x2="92" y2="276" stroke="#6b7280" stroke-width="3"/>
+        <text x="50" y="275" fill="#6b7280" font-size="9" font-family="JetBrains Mono" text-anchor="end">C1</text>
+        <line x1="68" y1="284" x2="92" y2="284" stroke="#6b7280" stroke-width="3"/>
+        <line x1="68" y1="292" x2="92" y2="292" stroke="#6b7280" stroke-width="3"/>
+        <text x="50" y="291" fill="#6b7280" font-size="9" font-family="JetBrains Mono" text-anchor="end">C2</text>
+        <!-- Neutral O -->
+        <circle cx="80" cy="280" r="4" fill="#10b981"/>
+        <text x="27" y="284" fill="#10b981" font-size="12" font-family="JetBrains Mono" font-weight="700">O</text>
+        <line x1="80" y1="280" x2="170" y2="280" stroke="var(--wire)" stroke-width="2"/>
+        <!-- Wires -->
+        <line x1="260" y1="30" x2="260" y2="50" stroke="var(--wire)" stroke-width="1.5"/>
+        <line x1="260" y1="120" x2="260" y2="130" stroke="var(--wire)" stroke-width="1.5"/>
+        <circle cx="260" cy="130" r="3" fill="var(--wire)"/>
+        <line x1="170" y1="130" x2="260" y2="130" stroke="var(--wire)" stroke-width="1.5"/>
+        <line x1="260" y1="130" x2="260" y2="140" stroke="var(--wire)" stroke-width="1.5"/>
+        <line x1="260" y1="210" x2="260" y2="280" stroke="var(--wire)" stroke-width="1.5"/>
+        <circle cx="260" cy="280" r="5" fill="var(--text)"/>
+        <line x1="260" y1="280" x2="450" y2="280" stroke="var(--text)" stroke-width="2"/>
+        <text x="400" y="272" fill="var(--text)" font-size="13" font-family="JetBrains Mono" font-weight="700">Vout</text>
+        <text x="406" y="298" fill="var(--current-flow)" font-size="10" font-family="JetBrains Mono" id="ioLabel">io &gt; 0 →</text>
+        <line x1="260" y1="280" x2="260" y2="350" stroke="var(--wire)" stroke-width="1.5"/>
+        <line x1="260" y1="420" x2="260" y2="430" stroke="var(--wire)" stroke-width="1.5"/>
+        <circle cx="260" cy="430" r="3" fill="var(--wire)"/>
+        <line x1="170" y1="430" x2="260" y2="430" stroke="var(--wire)" stroke-width="1.5"/>
+        <line x1="260" y1="430" x2="260" y2="440" stroke="var(--wire)" stroke-width="1.5"/>
+        <line x1="260" y1="510" x2="260" y2="560" stroke="var(--wire)" stroke-width="1.5"/>
+        <!-- Clamp wires -->
+        <line x1="170" y1="130" x2="170" y2="155" stroke="var(--wire)" stroke-width="1.5"/>
+        <line x1="170" y1="225" x2="170" y2="280" stroke="var(--wire)" stroke-width="1.5"/>
+        <line x1="170" y1="280" x2="170" y2="345" stroke="var(--wire)" stroke-width="1.5"/>
+        <line x1="170" y1="415" x2="170" y2="430" stroke="var(--wire)" stroke-width="1.5"/>
+
+        <!-- IGBT+Diode symbols (same as v4) -->
+        <!-- S1 translate(244,50) C=(260,50) E=(260,120) -->
+        <g id="s1-igbt" transform="translate(244,50)">
+          <rect id="s1-bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(34,197,94,.05)" stroke="#22c55e" stroke-width="1.4"/>
+          <line x1="-14" y1="35" x2="-2" y2="35" stroke="var(--dev)" stroke-width="1.5"/>
+          <line x1="0" y1="14" x2="0" y2="56" stroke="var(--dev)" stroke-width="2.5"/>
+          <line x1="6" y1="14" x2="6" y2="56" stroke="var(--dev)" stroke-width="2"/>
+          <line x1="6" y1="20" x2="16" y2="8" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="8" x2="16" y2="0" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="6" y1="48" x2="16" y2="60" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="60" x2="16" y2="70" stroke="var(--dev)" stroke-width="1.8"/>
+          <polygon points="10,52 16,60 10,58" fill="var(--dev)"/>
+          <line x1="28" y1="0" x2="28" y2="22" stroke="#4b5563" stroke-width="1.3" id="d1-w1"/>
+          <line x1="22" y1="22" x2="34" y2="22" stroke="#4b5563" stroke-width="2" id="d1-bar"/>
+          <polygon points="28,22 22,40 34,40" fill="none" stroke="#4b5563" stroke-width="1.4" id="d1-tri"/>
+          <line x1="28" y1="40" x2="28" y2="70" stroke="#4b5563" stroke-width="1.3" id="d1-w2"/>
+          <text x="37" y="35" fill="#4b5563" font-size="8" font-family="JetBrains Mono" id="d1-lb">D1</text>
+        </g>
+        <text x="310" y="85" fill="var(--text)" font-size="11" font-family="JetBrains Mono" font-weight="700">S1</text>
+        <text x="310" y="99" font-size="10" font-family="JetBrains Mono" font-weight="700" id="s1-st" fill="#22c55e">ON</text>
+        <text x="310" y="111" fill="var(--text-dim)" font-size="9" opacity=".5">外管</text>
+
+        <!-- S2 translate(244,140) C=(260,140) E=(260,210) -->
+        <g id="s2-igbt" transform="translate(244,140)">
+          <rect id="s2-bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(34,197,94,.05)" stroke="#22c55e" stroke-width="1.4"/>
+          <line x1="-14" y1="35" x2="-2" y2="35" stroke="var(--dev)" stroke-width="1.5"/>
+          <line x1="0" y1="14" x2="0" y2="56" stroke="var(--dev)" stroke-width="2.5"/>
+          <line x1="6" y1="14" x2="6" y2="56" stroke="var(--dev)" stroke-width="2"/>
+          <line x1="6" y1="20" x2="16" y2="8" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="8" x2="16" y2="0" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="6" y1="48" x2="16" y2="60" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="60" x2="16" y2="70" stroke="var(--dev)" stroke-width="1.8"/>
+          <polygon points="10,52 16,60 10,58" fill="var(--dev)"/>
+          <line x1="28" y1="0" x2="28" y2="22" stroke="#4b5563" stroke-width="1.3" id="d2-w1"/>
+          <line x1="22" y1="22" x2="34" y2="22" stroke="#4b5563" stroke-width="2" id="d2-bar"/>
+          <polygon points="28,22 22,40 34,40" fill="none" stroke="#4b5563" stroke-width="1.4" id="d2-tri"/>
+          <line x1="28" y1="40" x2="28" y2="70" stroke="#4b5563" stroke-width="1.3" id="d2-w2"/>
+          <text x="37" y="35" fill="#4b5563" font-size="8" font-family="JetBrains Mono" id="d2-lb">D2</text>
+        </g>
+        <text x="310" y="175" fill="var(--text)" font-size="11" font-family="JetBrains Mono" font-weight="700">S2</text>
+        <text x="310" y="189" font-size="10" font-family="JetBrains Mono" font-weight="700" id="s2-st" fill="#22c55e">ON</text>
+        <text x="310" y="201" fill="var(--text-dim)" font-size="9" opacity=".5">内管</text>
+
+        <!-- S3 translate(244,350) C=(260,350) E=(260,420) -->
+        <g id="s3-igbt" transform="translate(244,350)">
+          <rect id="s3-bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(75,85,99,.08)" stroke="#4b5563" stroke-width="1.4"/>
+          <line x1="-14" y1="35" x2="-2" y2="35" stroke="var(--dev)" stroke-width="1.5"/>
+          <line x1="0" y1="14" x2="0" y2="56" stroke="var(--dev)" stroke-width="2.5"/>
+          <line x1="6" y1="14" x2="6" y2="56" stroke="var(--dev)" stroke-width="2"/>
+          <line x1="6" y1="20" x2="16" y2="8" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="8" x2="16" y2="0" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="6" y1="48" x2="16" y2="60" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="60" x2="16" y2="70" stroke="var(--dev)" stroke-width="1.8"/>
+          <polygon points="10,52 16,60 10,58" fill="var(--dev)"/>
+          <line x1="28" y1="0" x2="28" y2="22" stroke="#4b5563" stroke-width="1.3" id="d3-w1"/>
+          <line x1="22" y1="22" x2="34" y2="22" stroke="#4b5563" stroke-width="2" id="d3-bar"/>
+          <polygon points="28,22 22,40 34,40" fill="none" stroke="#4b5563" stroke-width="1.4" id="d3-tri"/>
+          <line x1="28" y1="40" x2="28" y2="70" stroke="#4b5563" stroke-width="1.3" id="d3-w2"/>
+          <text x="37" y="35" fill="#4b5563" font-size="8" font-family="JetBrains Mono" id="d3-lb">D3</text>
+        </g>
+        <text x="310" y="385" fill="var(--text)" font-size="11" font-family="JetBrains Mono" font-weight="700">S3</text>
+        <text x="310" y="399" font-size="10" font-family="JetBrains Mono" font-weight="700" id="s3-st" fill="#4b5563">OFF</text>
+        <text x="310" y="411" fill="var(--text-dim)" font-size="9" opacity=".5">内管</text>
+
+        <!-- S4 translate(244,440) C=(260,440) E=(260,510) -->
+        <g id="s4-igbt" transform="translate(244,440)">
+          <rect id="s4-bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(75,85,99,.08)" stroke="#4b5563" stroke-width="1.4"/>
+          <line x1="-14" y1="35" x2="-2" y2="35" stroke="var(--dev)" stroke-width="1.5"/>
+          <line x1="0" y1="14" x2="0" y2="56" stroke="var(--dev)" stroke-width="2.5"/>
+          <line x1="6" y1="14" x2="6" y2="56" stroke="var(--dev)" stroke-width="2"/>
+          <line x1="6" y1="20" x2="16" y2="8" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="8" x2="16" y2="0" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="6" y1="48" x2="16" y2="60" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="60" x2="16" y2="70" stroke="var(--dev)" stroke-width="1.8"/>
+          <polygon points="10,52 16,60 10,58" fill="var(--dev)"/>
+          <line x1="28" y1="0" x2="28" y2="22" stroke="#4b5563" stroke-width="1.3" id="d4-w1"/>
+          <line x1="22" y1="22" x2="34" y2="22" stroke="#4b5563" stroke-width="2" id="d4-bar"/>
+          <polygon points="28,22 22,40 34,40" fill="none" stroke="#4b5563" stroke-width="1.4" id="d4-tri"/>
+          <line x1="28" y1="40" x2="28" y2="70" stroke="#4b5563" stroke-width="1.3" id="d4-w2"/>
+          <text x="37" y="35" fill="#4b5563" font-size="8" font-family="JetBrains Mono" id="d4-lb">D4</text>
+        </g>
+        <text x="310" y="475" fill="var(--text)" font-size="11" font-family="JetBrains Mono" font-weight="700">S4</text>
+        <text x="310" y="489" font-size="10" font-family="JetBrains Mono" font-weight="700" id="s4-st" fill="#4b5563">OFF</text>
+        <text x="310" y="501" fill="var(--text-dim)" font-size="9" opacity=".5">外管</text>
+
+        <!-- S5 translate(154,155) C=(170,155) E=(170,225) -->
+        <g id="s5-igbt" transform="translate(154,155)">
+          <rect id="s5-bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(75,85,99,.08)" stroke="#4b5563" stroke-width="1.4"/>
+          <line x1="-14" y1="35" x2="-2" y2="35" stroke="var(--dev)" stroke-width="1.5"/>
+          <line x1="0" y1="14" x2="0" y2="56" stroke="var(--dev)" stroke-width="2.5"/>
+          <line x1="6" y1="14" x2="6" y2="56" stroke="var(--dev)" stroke-width="2"/>
+          <line x1="6" y1="20" x2="16" y2="8" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="8" x2="16" y2="0" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="6" y1="48" x2="16" y2="60" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="60" x2="16" y2="70" stroke="var(--dev)" stroke-width="1.8"/>
+          <polygon points="10,52 16,60 10,58" fill="var(--dev)"/>
+          <line x1="28" y1="0" x2="28" y2="22" stroke="#4b5563" stroke-width="1.3" id="d5-w1"/>
+          <line x1="22" y1="22" x2="34" y2="22" stroke="#4b5563" stroke-width="2" id="d5-bar"/>
+          <polygon points="28,22 22,40 34,40" fill="none" stroke="#4b5563" stroke-width="1.4" id="d5-tri"/>
+          <line x1="28" y1="40" x2="28" y2="70" stroke="#4b5563" stroke-width="1.3" id="d5-w2"/>
+          <text x="37" y="35" fill="#4b5563" font-size="8" font-family="JetBrains Mono" id="d5-lb">D5</text>
+        </g>
+        <text x="120" y="195" fill="var(--text)" font-size="11" font-family="JetBrains Mono" font-weight="700" text-anchor="end">S5</text>
+        <text x="120" y="209" font-size="10" font-family="JetBrains Mono" font-weight="700" text-anchor="end" id="s5-st" fill="#4b5563">OFF</text>
+        <text x="120" y="221" fill="var(--text-dim)" font-size="9" opacity=".5" text-anchor="end">上钳位</text>
+
+        <!-- S6 translate(154,345) C=(170,345) E=(170,415) -->
+        <g id="s6-igbt" transform="translate(154,345)">
+          <rect id="s6-bg" x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(34,197,94,.05)" stroke="#22c55e" stroke-width="1.4"/>
+          <line x1="-14" y1="35" x2="-2" y2="35" stroke="var(--dev)" stroke-width="1.5"/>
+          <line x1="0" y1="14" x2="0" y2="56" stroke="var(--dev)" stroke-width="2.5"/>
+          <line x1="6" y1="14" x2="6" y2="56" stroke="var(--dev)" stroke-width="2"/>
+          <line x1="6" y1="20" x2="16" y2="8" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="8" x2="16" y2="0" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="6" y1="48" x2="16" y2="60" stroke="var(--dev)" stroke-width="1.8"/>
+          <line x1="16" y1="60" x2="16" y2="70" stroke="var(--dev)" stroke-width="1.8"/>
+          <polygon points="10,52 16,60 10,58" fill="var(--dev)"/>
+          <line x1="28" y1="0" x2="28" y2="22" stroke="#4b5563" stroke-width="1.3" id="d6-w1"/>
+          <line x1="22" y1="22" x2="34" y2="22" stroke="#4b5563" stroke-width="2" id="d6-bar"/>
+          <polygon points="28,22 22,40 34,40" fill="none" stroke="#4b5563" stroke-width="1.4" id="d6-tri"/>
+          <line x1="28" y1="40" x2="28" y2="70" stroke="#4b5563" stroke-width="1.3" id="d6-w2"/>
+          <text x="37" y="35" fill="#4b5563" font-size="8" font-family="JetBrains Mono" id="d6-lb">D6</text>
+        </g>
+        <text x="120" y="385" fill="var(--text)" font-size="11" font-family="JetBrains Mono" font-weight="700" text-anchor="end">S6</text>
+        <text x="120" y="399" font-size="10" font-family="JetBrains Mono" font-weight="700" text-anchor="end" id="s6-st" fill="#22c55e">ON</text>
+        <text x="120" y="411" fill="var(--text-dim)" font-size="9" opacity=".5" text-anchor="end">下钳位</text>
+
+        <!-- Voltage indicator -->
+        <g transform="translate(395,320)">
+          <rect x="-38" y="-14" width="76" height="28" rx="6" id="vb" fill="rgba(245,158,11,.12)" stroke="var(--accent-p)" stroke-width="1.5"/>
+          <text x="0" y="4" id="vt" fill="var(--accent-p)" font-size="12" font-family="JetBrains Mono" font-weight="700" text-anchor="middle">+Vdc/2</text>
+        </g>
+        <g id="cp"></g>
+        </svg>
+      </div>
+      <div class="lg">
+        <div class="li"><div class="ld" style="background:var(--on-color)"></div>IGBT导通</div>
+        <div class="li"><div class="ld" style="background:var(--off-color)"></div>IGBT关断</div>
+        <div class="li"><div class="ld" style="background:var(--cyan)"></div>二极管续流</div>
+        <div class="li"><svg width="28" height="8"><line x1="0" y1="4" x2="28" y2="4" stroke="var(--current-flow)" stroke-width="2.5" stroke-dasharray="5 3"/></svg>电流</div>
+      </div>
+      </div>
+    </div>
+    <div class="pn">
+      <div class="ph"><div class="dt"></div>开关状态 · 换流分析</div>
+      <div class="pb">
+        <div class="tags" id="tags"></div>
+        <table class="st"><thead><tr><th>器件</th><th>位置</th><th>状态</th><th>导通器件</th></tr></thead><tbody id="tb"></tbody></table>
+        <div id="db2" class="db"><div class="tt" id="dt2"></div><div id="dc"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// Flow path coordinates
+const FP={
+  // +Vdc/2 bus → S1 → S2 → output (current flows out)
+  P_Ipos: [[80,30],[260,30],[260,85],[260,130],[260,175],[260,280],[450,280]],
+  // output → D1 → D2 → +Vdc/2 bus (current flows in, through antiparallel diodes up)
+  P_Ineg: [[450,280],[260,280],[260,175],[260,130],[260,85],[260,30],[80,30]],
+  // O → S5 → nodeA → S2 → output
+  OU_Ipos: [[80,280],[170,280],[170,225],[170,190],[170,155],[170,130],[260,130],[260,175],[260,280],[450,280]],
+  // output → D2 → nodeA → D5 → O
+  OU_Ineg: [[450,280],[260,280],[260,175],[260,130],[170,130],[170,155],[170,190],[170,225],[170,280],[80,280]],
+  // output → D3 → nodeB → S6 → O
+  OL_Ipos: [[450,280],[260,280],[260,385],[260,430],[170,430],[170,415],[170,380],[170,345],[170,280],[80,280]],
+  // O → S6 → nodeB → S3 → output  (note: S6 C→E is top→bottom, so current O→nodeB)
+  // Actually: O → S6(C at 345, E at 415... wait S6 collector at top(345), emitter at bottom(415)
+  // Current through IGBT: C→E = top→bottom. So for current from O(280) down to nodeB(430): O→S6.C(345)→S6.E(415)→nodeB(430)
+  OL_Ineg: [[80,280],[170,280],[170,345],[170,380],[170,415],[170,430],[260,430],[260,385],[260,280],[450,280]],
+  // output → D3 → D4 → -Vdc/2
+  N_Ipos: [[450,280],[260,280],[260,385],[260,430],[260,475],[260,560],[80,560]],
+  // -Vdc/2 → S4 → S3 → output
+  N_Ineg: [[80,560],[260,560],[260,475],[260,430],[260,385],[260,280],[450,280]],
+};
+
+// All 4 quadrants × sub-states
+const DATA={
+  // Q1: V>0, I>0 — 正电压正电流
+  1:[
+    { id:'P', label:'+Vdc/2 输出',
+      sw:{S1:'ON',S2:'ON',S3:'OFF',S4:'OFF',S5:'OFF',S6:'ON'},
+      diodes:{}, flow:[FP.P_Ipos], vout:'+Vdc/2', vc:'p',
+      title:'Q1 · P状态: V>0, I>0',
+      desc:'电流从正母线经 S1(IGBT导通) → S2(IGBT导通) → 输出端流出。S6 辅助钳位保护下管电压均分。这是典型的逆变正半周功率输出状态。',
+      conduct:'S1, S2 (IGBT导通)' },
+    { id:'OU', label:'零电平 (上路径)',
+      sw:{S1:'OFF',S2:'ON',S3:'OFF',S4:'OFF',S5:'ON',S6:'OFF'},
+      diodes:{}, flow:[FP.OU_Ipos], vout:'0', vc:'o',
+      title:'Q1 · OU状态: V=0 (上路径), I>0',
+      desc:'电流从中点 O → S5(IGBT导通) → 节点A → S2(IGBT导通) → 输出端。换流从 S1 转移到 S5，属短换流回路。',
+      conduct:'S5, S2 (IGBT导通)' },
+    { id:'OL', label:'零电平 (下路径)',
+      sw:{S1:'ON',S2:'OFF',S3:'OFF',S4:'OFF',S5:'OFF',S6:'ON'},
+      diodes:{D3:1}, flow:[FP.OL_Ipos], vout:'0', vc:'o',
+      title:'Q1 · OL状态: V=0 (下路径), I>0',
+      desc:'电流从输出端 → D3(二极管续流) → 节点B → S6(IGBT导通) → 中点 O。正电流方向下 S3 的反并联二极管 D3 自然续流。用于与 OU 交替实现损耗均衡。',
+      conduct:'D3 (续流), S6 (IGBT导通)' },
+  ],
+  // Q2: V>0, I<0 — 正电压负电流
+  2:[
+    { id:'P', label:'+Vdc/2 输出',
+      sw:{S1:'ON',S2:'ON',S3:'OFF',S4:'OFF',S5:'OFF',S6:'ON'},
+      diodes:{D1:1,D2:1}, flow:[FP.P_Ineg], vout:'+Vdc/2', vc:'p',
+      title:'Q2 · P状态: V>0, I<0',
+      desc:'电流从输出端流入 → D2(续流) → D1(续流) → 正母线。负电流方向下 S1/S2 的 IGBT 虽开通但不过电流，实际由 D1、D2 承担续流。这是整流正半周的典型工况。',
+      conduct:'D1, D2 (二极管续流)' },
+    { id:'OU', label:'零电平 (上路径)',
+      sw:{S1:'OFF',S2:'ON',S3:'OFF',S4:'OFF',S5:'ON',S6:'OFF'},
+      diodes:{D2:1,D5:1}, flow:[FP.OU_Ineg], vout:'0', vc:'o',
+      title:'Q2 · OU状态: V=0 (上路径), I<0',
+      desc:'电流从输出端流入 → D2(续流) → 节点A → D5(续流) → 中点 O。负电流经上侧二极管回到中点。',
+      conduct:'D2, D5 (二极管续流)' },
+    { id:'OL', label:'零电平 (下路径)',
+      sw:{S1:'ON',S2:'OFF',S3:'OFF',S4:'OFF',S5:'OFF',S6:'ON'},
+      diodes:{}, flow:[FP.OL_Ineg], vout:'0', vc:'o',
+      title:'Q2 · OL状态: V=0 (下路径), I<0',
+      desc:'电流从中点 O → S6(IGBT导通) → 节点B → S3(IGBT导通) → 输出端。注意此时 S3 门极需开通以提供负电流的导通通道。',
+      conduct:'S6, S3 (IGBT导通)' },
+  ],
+  // Q3: V<0, I<0 — 负电压负电流
+  3:[
+    { id:'N', label:'−Vdc/2 输出',
+      sw:{S1:'OFF',S2:'OFF',S3:'ON',S4:'ON',S5:'ON',S6:'OFF'},
+      diodes:{}, flow:[FP.N_Ineg], vout:'−Vdc/2', vc:'n',
+      title:'Q3 · N状态: V<0, I<0',
+      desc:'电流从负母线经 S4(IGBT导通) → S3(IGBT导通) → 输出端流入负载。S5 辅助钳位保护上管电压均分。这是逆变负半周的功率输出状态，与 Q1 的 P 状态完全对称。',
+      conduct:'S3, S4 (IGBT导通)' },
+    { id:'OL', label:'零电平 (下路径)',
+      sw:{S1:'OFF',S2:'OFF',S3:'ON',S4:'OFF',S5:'OFF',S6:'ON'},
+      diodes:{}, flow:[FP.OL_Ineg], vout:'0', vc:'o',
+      title:'Q3 · OL状态: V=0 (下路径), I<0',
+      desc:'电流从中点 O → S6(IGBT导通) → 节点B → S3(IGBT导通) → 输出端。换流从 S4 转移到 S6，属短换流回路。',
+      conduct:'S6, S3 (IGBT导通)' },
+    { id:'OU', label:'零电平 (上路径)',
+      sw:{S1:'OFF',S2:'OFF',S3:'OFF',S4:'ON',S5:'ON',S6:'OFF'},
+      diodes:{D2:1}, flow:[FP.OU_Ineg], vout:'0', vc:'o',
+      title:'Q3 · OU状态: V=0 (上路径), I<0',
+      desc:'电流从输出端 → D2(续流) → 节点A → D5(续流) → 中点 O。负电流方向下经上侧二极管续流回到中点，用于与 OL 交替实现损耗均衡。',
+      conduct:'D2, D5 (二极管续流)' },
+  ],
+  // Q4: V<0, I>0 — 负电压正电流
+  4:[
+    { id:'N', label:'−Vdc/2 输出',
+      sw:{S1:'OFF',S2:'OFF',S3:'ON',S4:'ON',S5:'ON',S6:'OFF'},
+      diodes:{D3:1,D4:1}, flow:[FP.N_Ipos], vout:'−Vdc/2', vc:'n',
+      title:'Q4 · N状态: V<0, I>0',
+      desc:'电流从输出端流入 → D3(续流) → D4(续流) → 负母线。正电流方向下 S3/S4 的 IGBT 虽开通但不过电流，由 D3、D4 承担续流。这是整流负半周的典型工况。',
+      conduct:'D3, D4 (二极管续流)' },
+    { id:'OL', label:'零电平 (下路径)',
+      sw:{S1:'OFF',S2:'OFF',S3:'ON',S4:'OFF',S5:'OFF',S6:'ON'},
+      diodes:{D3:1}, flow:[FP.OL_Ipos], vout:'0', vc:'o',
+      title:'Q4 · OL状态: V=0 (下路径), I>0',
+      desc:'电流从输出端 → D3(续流) → 节点B → S6(IGBT导通) → 中点 O。正电流经下侧器件回到中点。',
+      conduct:'D3 (续流), S6 (IGBT导通)' },
+    { id:'OU', label:'零电平 (上路径)',
+      sw:{S1:'OFF',S2:'ON',S3:'OFF',S4:'ON',S5:'ON',S6:'OFF'},
+      diodes:{}, flow:[FP.OU_Ipos], vout:'0', vc:'o',
+      title:'Q4 · OU状态: V=0 (上路径), I>0',
+      desc:'电流从中点 O → S5(IGBT导通) → 节点A → S2(IGBT导通) → 输出端。正电流经上侧管子流出，用于与 OL 交替实现损耗均衡。',
+      conduct:'S5, S2 (IGBT导通)' },
+  ],
+};
+
+const VC={p:{m:'#f59e0b',b:'rgba(245,158,11,.12)'},o:{m:'#10b981',b:'rgba(16,185,129,.12)'},n:{m:'#3b82f6',b:'rgba(59,130,246,.12)'}};
+const QC={1:'#f59e0b',2:'#a855f7',3:'#3b82f6',4:'#ef4444'};
+const QDIR={1:'io > 0 →',2:'← io < 0',3:'← io < 0',4:'io > 0 →'};
+let curQ=1, curSub=0;
+
+function ssw(n,on){
+  const bg=document.getElementById(n.toLowerCase()+'-bg'),st=document.getElementById(n.toLowerCase()+'-st');
+  if(!bg||!st)return;
+  st.textContent=on?'ON':'OFF';
+  if(on){bg.setAttribute('fill','rgba(34,197,94,.05)');bg.setAttribute('stroke','#22c55e');st.setAttribute('fill','#22c55e')}
+  else{bg.setAttribute('fill','rgba(75,85,99,.08)');bg.setAttribute('stroke','#4b5563');st.setAttribute('fill','#4b5563')}
+}
+function sdi(n,a){
+  const id=n.toLowerCase();
+  const t=document.getElementById(id+'-tri'),b=document.getElementById(id+'-bar'),l=document.getElementById(id+'-lb'),w1=document.getElementById(id+'-w1'),w2=document.getElementById(id+'-w2');
+  if(!t)return;const c=a?'#06b6d4':'#4b5563';
+  t.setAttribute('stroke',c);t.setAttribute('fill',a?'rgba(6,182,212,.15)':'none');
+  b.setAttribute('stroke',c);if(l)l.setAttribute('fill',c);
+  if(w1)w1.setAttribute('stroke',c);if(w2)w2.setAttribute('stroke',c);
+}
+function dfl(paths){
+  const g=document.getElementById('cp');g.innerHTML='';
+  paths.forEach(pts=>{
+    const ps=pts.map(p=>p.join(',')).join(' ');
+    const gl=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    gl.setAttribute('points',ps);gl.classList.add('fg');g.appendChild(gl);
+    const ln=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    ln.setAttribute('points',ps);ln.classList.add('fl');g.appendChild(ln);
+    for(let i=0;i<pts.length-1;i++){
+      const[x1,y1]=pts[i],[x2,y2]=pts[i+1];
+      if(Math.hypot(x2-x1,y2-y1)<40)continue;
+      const mx=(x1+x2)/2,my=(y1+y2)/2,a=Math.atan2(y2-y1,x2-x1)*180/Math.PI;
+      const ar=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+      ar.setAttribute('points','0,-5 10,0 0,5');
+      ar.setAttribute('transform',`translate(${mx},${my}) rotate(${a})`);
+      ar.setAttribute('fill','var(--current-flow)');ar.setAttribute('opacity','.8');
+      g.appendChild(ar);
+    }
+  });
+}
+
+function buildSubBtns(){
+  const row=document.getElementById('subRow');
+  row.innerHTML='';
+  const states=DATA[curQ];
+  states.forEach((s,i)=>{
+    const b=document.createElement('div');
+    b.className='sub-btn'+(i===curSub?' active':'');
+    b.textContent=s.id+': '+s.label;
+    b.onclick=()=>{curSub=i;render()};
+    row.appendChild(b);
+  });
+}
+
+function render(){
+  const states=DATA[curQ];
+  const s=states[curSub];
+  // Quad buttons
+  document.querySelectorAll('.quad-btn').forEach(b=>b.classList.toggle('active',+b.dataset.q===curQ));
+  // Sub buttons
+  document.querySelectorAll('.sub-btn').forEach((b,i)=>b.classList.toggle('active',i===curSub));
+  // io label
+  document.getElementById('ioLabel').textContent=QDIR[curQ];
+  // Switches
+  ['S1','S2','S3','S4','S5','S6'].forEach(n=>ssw(n,s.sw[n]==='ON'));
+  ['D1','D2','D3','D4','D5','D6'].forEach(d=>sdi(d,false));
+  if(s.diodes)Object.keys(s.diodes).forEach(d=>sdi(d,true));
+  // Tags
+  const vSign=s.vout.includes('-')?'<':'>';
+  const iSign=curQ<=2?'':'';
+  const tags=document.getElementById('tags');
+  tags.innerHTML=`<span class="tag tag-v">⚡ ${s.vout}</span><span class="tag tag-i">🔁 ${QDIR[curQ]}</span><span class="tag tag-cl">🔧 ${s.conduct}</span>`;
+  // Table
+  const pos={S1:'外管',S2:'内管',S3:'内管',S4:'外管',S5:'上钳位',S6:'下钳位'};
+  const tb=document.getElementById('tb');tb.innerHTML='';
+  ['S1','S2','S3','S4','S5','S6'].forEach(n=>{
+    const on=s.sw[n]==='ON';
+    // Check if its diode is active
+    const dn='D'+n[1];
+    const dActive=s.diodes&&s.diodes[dn];
+    let conduct='-';
+    if(on&&!dActive)conduct='IGBT';
+    else if(on&&dActive)conduct='IGBT+二极管';
+    else if(!on&&dActive)conduct='二极管(D'+n[1]+')';
+    else conduct='-';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="color:var(--text);font-weight:500">${n}</td><td style="color:var(--text-dim);font-size:11px">${pos[n]}</td><td class="${on?'so':'sf2'}">${s.sw[n]}</td><td style="color:${dActive?'var(--cyan)':on?'var(--on-color)':'var(--off-color)'};font-size:11px">${conduct}</td>`;
+    tb.appendChild(tr);
+  });
+  // Desc
+  document.getElementById('dt2').textContent=s.title;
+  document.getElementById('dc').textContent=s.desc;
+  // Vout
+  const vc=VC[s.vc];
+  document.getElementById('vt').textContent=s.vout;document.getElementById('vt').setAttribute('fill',vc.m);
+  document.getElementById('vb').setAttribute('stroke',vc.m);document.getElementById('vb').setAttribute('fill',vc.b);
+  // Flow
+  dfl(s.flow);
+}
+
+function setQ(q){curQ=q;curSub=0;buildSubBtns();render()}
+
+buildSubBtns();render();
+</script>
+</body>
+</html>

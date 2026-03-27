@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ANPC 三电平逆变器发波技术培训</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ===== 顶部标题栏 ===== -->
+<header id="top-bar">
+  <span class="doc-title">ANPC 三电平逆变器发波技术培训</span>
+  <span class="separator">›</span>
+  <span class="chapter-title" id="current-chapter">第一章 ANPC拓扑介绍</span>
+</header>
+
+<div id="layout">
+
+  <!-- ===== 左侧目录 ===== -->
+  <nav id="sidebar">
+    <div class="toc-header">目 录</div>
+
+    <div class="toc-chapter open" data-chapter-id="ch1">
+      <div class="toc-chapter-title">
+        <span class="toc-arrow">▶</span>第一章 ANPC拓扑介绍
+      </div>
+      <div class="toc-children">
+        <a class="toc-section" href="#sec-1-1">1.1 基本结构</a>
+        <a class="toc-section" href="#sec-1-2">1.2 元器件说明</a>
+      </div>
+    </div>
+
+    <div class="toc-chapter" data-chapter-id="ch2">
+      <div class="toc-chapter-title">
+        <span class="toc-arrow">▶</span>第二章 开关状态分析
+      </div>
+      <div class="toc-children">
+        <a class="toc-section" href="#sec-2-1">2.1 四象限工作状态分析</a>
+      </div>
+    </div>
+
+    <div class="toc-chapter" data-chapter-id="ch3">
+      <div class="toc-chapter-title">
+        <span class="toc-arrow">▶</span>第三章 SPWM发波原理
+      </div>
+      <div class="toc-children">
+        <a class="toc-section" href="#sec-3-1">3.1 载波调制原理</a>
+        <a class="toc-section" href="#sec-3-2">3.2 开关序列</a>
+      </div>
+    </div>
+
+    <div class="toc-chapter" data-chapter-id="ch4">
+      <div class="toc-chapter-title">
+        <span class="toc-arrow">▶</span>第四章 损耗分析
+      </div>
+      <div class="toc-children">
+        <a class="toc-section" href="#sec-4-1">4.1 各管损耗分布</a>
+      </div>
+    </div>
+
+  </nav><!-- end sidebar -->
+
+  <!-- ===== 右侧内容区 ===== -->
+  <main id="content">
+    <div class="doc-page">
+
+      <div class="doc-main-title">ANPC 三电平逆变器<br>发波技术培训文档</div>
+      <div class="doc-subtitle">Active Neutral Point Clamped Inverter — Switching Technology Training</div>
+
+      <!-- ══════════════════════════════════════════ -->
+      <!--            第一章                          -->
+      <!-- ══════════════════════════════════════════ -->
+      <h1 class="chapter-heading"
+          id="ch1"
+          data-section data-chapter="ch1"
+          data-label="第一章 ANPC拓扑介绍">
+        第一章　ANPC 拓扑介绍
+      </h1>
+
+      <p>ANPC（Active Neutral Point Clamped，有源中点钳位）三电平逆变器是在经典 NPC 拓扑基础上发展而来的一种高性能多电平变换器拓扑。它通过将被动钳位二极管替换为可控开关管，赋予了电路主动管理损耗分布的能力，因而在光伏并网、工业驱动、储能变流等领域得到广泛应用。</p>
+
+      <!-- ─── 1.1 ─── -->
+      <h2 class="section-heading"
+          id="sec-1-1"
+          data-section data-chapter="ch1"
+          data-label="1.1 基本结构">
+        1.1　基本结构
+      </h2>
+
+      <p>ANPC 三电平逆变器的单相桥臂由 <strong>6 个开关管</strong>（T1～T6）、<strong>2 个钳位二极管</strong>（D1、D2）以及 <strong>2 个直流母线电容</strong>（C1、C2）组成。直流侧分为正母线（P）、中性点（O）和负母线（N）三个电位节点，交流侧输出端（AC）可输出三种电平：+V<sub>dc</sub>/2、0 和 −V<sub>dc</sub>/2。</p>
+
+      <p>与传统 NPC 拓扑相比，ANPC 用 T5、T6 两个有源开关替代了原有的钳位二极管，通过控制 T5、T6 的导通与关断，可以灵活地将损耗分配到不同器件上，从而在不同工况下优化整体效率。</p>
+
+      <!-- 交互模块：拓扑结构 -->
+      <div class="module-box">
+        <div class="module-box-header">
+          <span class="icon">⚡</span> 交互图 — ANPC 拓扑结构全览（鼠标悬停查看元器件说明）
+        </div>
+        <iframe src="modules/topology.html" title="ANPC拓扑结构"></iframe>
+        <div class="module-caption">图 1-1：ANPC 单相桥臂拓扑结构图（可交互，悬停查看器件信息）</div>
+      </div>
+
+      <!-- ─── 1.2 ─── -->
+      <h2 class="section-heading"
+          id="sec-1-2"
+          data-section data-chapter="ch1"
+          data-label="1.2 元器件说明">
+        1.2　元器件说明
+      </h2>
+
+      <p>下表列出了 ANPC 桥臂各元器件的名称、位置与主要功能：</p>
+
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>器件</th><th>位置</th><th>类型</th><th>主要功能</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>T1</td><td>上外侧（P→node_A）</td><td>IGBT/MOSFET</td><td>正电平输出时导通，承受下半桥电压应力</td></tr>
+          <tr><td>T2</td><td>上内侧（node_A→AC）</td><td>IGBT/MOSFET</td><td>正电平与上零电平共用，电流从直流侧流向交流侧</td></tr>
+          <tr><td>T3</td><td>下内侧（AC→node_B）</td><td>IGBT/MOSFET</td><td>负电平与下零电平共用，电流从交流侧流向直流侧</td></tr>
+          <tr><td>T4</td><td>下外侧（node_B→N）</td><td>IGBT/MOSFET</td><td>负电平输出时导通，承受上半桥电压应力</td></tr>
+          <tr><td>T5</td><td>上钳位（O→node_A）</td><td>IGBT/MOSFET</td><td>有源上钳位开关，零电平时提供钳位路径并主动分配损耗</td></tr>
+          <tr><td>T6</td><td>下钳位（node_B→O）</td><td>IGBT/MOSFET</td><td>有源下钳位开关，零电平时提供钳位路径并主动分配损耗</td></tr>
+          <tr><td>D1</td><td>T5 支路反并联</td><td>快恢复二极管</td><td>与 T5 反并联，为反向电流提供续流路径</td></tr>
+          <tr><td>D2</td><td>T6 支路反并联</td><td>快恢复二极管</td><td>与 T6 反并联，为反向电流提供续流路径</td></tr>
+          <tr><td>C1</td><td>P 与 O 之间</td><td>电解电容</td><td>上半直流母线电容，维持 +V<sub>dc</sub>/2 电压</td></tr>
+          <tr><td>C2</td><td>O 与 N 之间</td><td>电解电容</td><td>下半直流母线电容，维持 −V<sub>dc</sub>/2 电压</td></tr>
+          <tr><td>AC</td><td>T2/T3 中点</td><td>交流输出端</td><td>连接至负载或电网</td></tr>
+        </tbody>
+      </table>
+
+      <div class="info-box">
+        <div class="info-box-title">📌 关键特点</div>
+        <p>每个开关管同时含有一个<strong>反并联体二极管</strong>（Body Diode），用于在开关管关断期间提供反向续流路径。T5、T6 的主动控制能力是 ANPC 相对于经典 NPC 的最大优势所在。</p>
+      </div>
+
+      <hr class="chapter-divider">
+
+      <!-- ══════════════════════════════════════════ -->
+      <!--            第二章                          -->
+      <!-- ══════════════════════════════════════════ -->
+      <h1 class="chapter-heading"
+          id="ch2"
+          data-section data-chapter="ch2"
+          data-label="第二章 开关状态分析">
+        第二章　开关状态分析
+      </h1>
+
+      <p>ANPC 三电平逆变器共有四种基本开关状态，分别对应输出正电平（P 态）、上钳位零电平（OL 态）、下钳位零电平（OU 态）和负电平（N 态）。下表汇总了各态下的开关组合：</p>
+
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>开关状态</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th><th>输出电压</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>P 态</strong>（正电平）</td>
+            <td class="td-on">ON</td><td class="td-on">ON</td>
+            <td class="td-off">off</td><td class="td-off">off</td>
+            <td class="td-off">off</td><td class="td-on">ON</td>
+            <td>+V<sub>dc</sub>/2</td>
+          </tr>
+          <tr>
+            <td><strong>OL 态</strong>（上钳位零电平）</td>
+            <td class="td-off">off</td><td class="td-on">ON</td>
+            <td class="td-on">ON</td><td class="td-off">off</td>
+            <td class="td-on">ON</td><td class="td-off">off</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td><strong>OU 态</strong>（下钳位零电平）</td>
+            <td class="td-off">off</td><td class="td-off">off</td>
+            <td class="td-on">ON</td><td class="td-on">ON</td>
+            <td class="td-off">off</td><td class="td-on">ON</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td><strong>N 态</strong>（负电平）</td>
+            <td class="td-off">off</td><td class="td-off">off</td>
+            <td class="td-on">ON</td><td class="td-on">ON</td>
+            <td class="td-on">ON</td><td class="td-off">off</td>
+            <td>−V<sub>dc</sub>/2</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ─── 2.1 ─── -->
+      <h2 class="section-heading"
+          id="sec-2-1"
+          data-section data-chapter="ch2"
+          data-label="2.1 四象限工作状态分析">
+        2.1　四象限工作状态交互分析
+      </h2>
+
+      <p>ANPC 三电平逆变器的工作状态由输出电压极性（V）和负载电流方向（I）共同决定，形成四个工作象限。每个象限内均有三种可用的开关状态（P/N 电平态，以及 OL 和 OU 两种零电平路径）。以下交互图涵盖全部四个象限的电流路径与导通器件分析：</p>
+
+      <ul>
+        <li><strong>Q1（V&gt;0, I&gt;0）</strong>：逆变正半周，电流从直流正母线流向交流侧。</li>
+        <li><strong>Q2（V&gt;0, I&lt;0）</strong>：整流正半周或回馈制动，电流从交流侧回馈至直流正母线，由体二极管导通。</li>
+        <li><strong>Q3（V&lt;0, I&lt;0）</strong>：逆变负半周，与 Q1 完全对称，电流从直流负母线流向交流侧。</li>
+        <li><strong>Q4（V&lt;0, I&gt;0）</strong>：整流负半周，与 Q2 对称，由下侧体二极管导通续流。</li>
+      </ul>
+
+      <p>零电平（O 态）分为 <strong>OU（上路径）</strong> 和 <strong>OL（下路径）</strong> 两种子状态，通过在两者之间交替切换，可主动均衡 T5、T6 的开关损耗——这正是 ANPC 相对于经典 NPC 拓扑的核心优势。</p>
+
+      <div class="module-box">
+        <div class="module-box-header">
+          <span class="icon">⚡</span> 交互图 — 四象限开关状态分析（选择象限 → 切换 P/OU/OL/N 子状态）
+        </div>
+        <iframe src="modules/state_analysis.html" title="四象限工作状态分析"></iframe>
+        <div class="module-caption">图 2-1：ANPC 三电平四象限工作状态 · 导通器件与电流路径交互分析</div>
+      </div>
+
+      <hr class="chapter-divider">
+
+      <!-- ══════════════════════════════════════════ -->
+      <!--            第三章                          -->
+      <!-- ══════════════════════════════════════════ -->
+      <h1 class="chapter-heading"
+          id="ch3"
+          data-section data-chapter="ch3"
+          data-label="第三章 SPWM发波原理">
+        第三章　SPWM 发波原理
+      </h1>
+
+      <!-- ─── 3.1 ─── -->
+      <h2 class="section-heading"
+          id="sec-3-1"
+          data-section data-chapter="ch3"
+          data-label="3.1 载波调制原理">
+        3.1　载波调制原理
+      </h2>
+
+      <p>ANPC 三电平逆变器通常采用<strong>载波层叠 SPWM（Level-Shifted PWM，LS-PWM）</strong>调制方式，使用两个同频、同相或移相的三角波载波（Carrier 1 与 Carrier 2）与正弦调制波（Modulation Wave）进行比较，产生 PWM 触发信号。</p>
+
+      <p>两个三角载波分布在中性点 O 的上下两侧，幅值各为 V<sub>dc</sub>/2：</p>
+      <ul>
+        <li><strong>载波 1（Carrier 1）</strong>：范围 0 ～ +V<sub>dc</sub>/2，用于产生上半桥（T1、T2）的驱动信号。</li>
+        <li><strong>载波 2（Carrier 2）</strong>：范围 −V<sub>dc</sub>/2 ～ 0，用于产生下半桥（T3、T4）的驱动信号。</li>
+      </ul>
+
+      <p>调制波 v<sub>ref</sub> 与载波实时比较，逻辑关系如下：</p>
+      <ul>
+        <li>v<sub>ref</sub> &gt; Carrier 1（上三角载波峰值）：输出 <em>P 态</em>（+V<sub>dc</sub>/2）。</li>
+        <li>0 &lt; v<sub>ref</sub> &lt; Carrier 1：切换 <em>OL / OU 零态</em>（上半周期内）。</li>
+        <li>Carrier 2 &lt; v<sub>ref</sub> &lt; 0：切换 <em>OL / OU 零态</em>（下半周期内）。</li>
+        <li>v<sub>ref</sub> &lt; Carrier 2（下三角载波谷值）：输出 <em>N 态</em>（−V<sub>dc</sub>/2）。</li>
+      </ul>
+
+      <div class="info-box tip">
+        <div class="info-box-title">💡 调制深度</div>
+        <p>调制比 m<sub>a</sub> = V<sub>ref_peak</sub> / V<sub>carrier_peak</sub>，典型取值范围 0.8～1.0。调制比越高，基波分量越大，但过调制会导致波形失真增加。</p>
+      </div>
+
+      <!-- ─── 3.2 ─── -->
+      <h2 class="section-heading"
+          id="sec-3-2"
+          data-section data-chapter="ch3"
+          data-label="3.2 开关序列">
+        3.2　开关序列
+      </h2>
+
+      <p>在一个载波周期 T<sub>s</sub> 内，ANPC 的开关序列遵循<strong>对称七段式</strong>规律，以正半周为例：</p>
+
+      <table class="doc-table">
+        <thead>
+          <tr><th>时间段</th><th>状态</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>t₁</td><td>P</td><td class="td-on">ON</td><td class="td-on">ON</td><td class="td-off">-</td><td class="td-off">-</td><td class="td-off">-</td><td class="td-on">ON</td></tr>
+          <tr><td>t₂</td><td>OL</td><td class="td-off">-</td><td class="td-on">ON</td><td class="td-on">ON</td><td class="td-off">-</td><td class="td-on">ON</td><td class="td-off">-</td></tr>
+          <tr><td>t₃</td><td>OU</td><td class="td-off">-</td><td class="td-off">-</td><td class="td-on">ON</td><td class="td-on">ON</td><td class="td-off">-</td><td class="td-on">ON</td></tr>
+          <tr><td>t₄</td><td>OL</td><td class="td-off">-</td><td class="td-on">ON</td><td class="td-on">ON</td><td class="td-off">-</td><td class="td-on">ON</td><td class="td-off">-</td></tr>
+          <tr><td>t₅</td><td>P</td><td class="td-on">ON</td><td class="td-on">ON</td><td class="td-off">-</td><td class="td-off">-</td><td class="td-off">-</td><td class="td-on">ON</td></tr>
+        </tbody>
+      </table>
+
+      <div class="module-box">
+        <div class="module-box-header">
+          <span class="icon">📈</span> 交互图 — SPWM 载波调制波形展示（可调节调制比与频率）
+        </div>
+        <iframe src="modules/pwm.html" title="SPWM波形"></iframe>
+        <div class="module-caption">图 3-1：SPWM 载波层叠调制波形（含调制波、双载波与输出 PWM 波）</div>
+      </div>
+
+      <hr class="chapter-divider">
+
+      <!-- ══════════════════════════════════════════ -->
+      <!--            第四章                          -->
+      <!-- ══════════════════════════════════════════ -->
+      <h1 class="chapter-heading"
+          id="ch4"
+          data-section data-chapter="ch4"
+          data-label="第四章 损耗分析">
+        第四章　损耗分析
+      </h1>
+
+      <!-- ─── 4.1 ─── -->
+      <h2 class="section-heading"
+          id="sec-4-1"
+          data-section data-chapter="ch4"
+          data-label="4.1 各管损耗分布">
+        4.1　各管损耗分布
+      </h2>
+
+      <p>在 ANPC 拓扑中，各开关管的损耗分布与调制策略密切相关。开关损耗集中在发生开关动作的器件上，而导通损耗则取决于各状态的持续时间和通过的电流。</p>
+
+      <h3 class="subsection-heading">损耗来源</h3>
+      <ul>
+        <li><strong>开关损耗（Switching Loss）</strong>：器件开通/关断时产生，与器件结电容、电流幅值及开关频率成正比。</li>
+        <li><strong>导通损耗（Conduction Loss）</strong>：器件在导通期间产生的 I²R 热损耗，与导通时间和电流有效值有关。</li>
+        <li><strong>二极管反向恢复损耗（Diode Recovery Loss）</strong>：快恢复二极管关断时产生，影响较大。</li>
+      </ul>
+
+      <h3 class="subsection-heading">典型损耗分布（调制比 m<sub>a</sub>=0.9，功率因数 PF=1）</h3>
+
+      <div style="margin: 18px 0;">
+        <div class="loss-bar">
+          <span style="width:40px;text-align:right;font-size:12px;color:#555">T1</span>
+          <div class="loss-bar-fill" style="background:#e74c3c;width:120px;">12%</div>
+          <span style="font-size:12px;color:#888">开关损耗为主（正电平切换）</span>
+        </div>
+        <div class="loss-bar">
+          <span style="width:40px;text-align:right;font-size:12px;color:#555">T2</span>
+          <div class="loss-bar-fill" style="background:#e67e22;width:200px;">21%</div>
+          <span style="font-size:12px;color:#888">导通 + 开关损耗（最高）</span>
+        </div>
+        <div class="loss-bar">
+          <span style="width:40px;text-align:right;font-size:12px;color:#555">T3</span>
+          <div class="loss-bar-fill" style="background:#e67e22;width:190px;">20%</div>
+          <span style="font-size:12px;color:#888">导通 + 开关损耗（与T2对称）</span>
+        </div>
+        <div class="loss-bar">
+          <span style="width:40px;text-align:right;font-size:12px;color:#555">T4</span>
+          <div class="loss-bar-fill" style="background:#e74c3c;width:120px;">12%</div>
+          <span style="font-size:12px;color:#888">开关损耗为主（负电平切换）</span>
+        </div>
+        <div class="loss-bar">
+          <span style="width:40px;text-align:right;font-size:12px;color:#555">T5</span>
+          <div class="loss-bar-fill" style="background:#3498db;width:165px;">17%</div>
+          <span style="font-size:12px;color:#888">零电平导通损耗（可与T6均衡）</span>
+        </div>
+        <div class="loss-bar">
+          <span style="width:40px;text-align:right;font-size:12px;color:#555">T6</span>
+          <div class="loss-bar-fill" style="background:#3498db;width:165px;">17%</div>
+          <span style="font-size:12px;color:#888">零电平导通损耗（可与T5均衡）</span>
+        </div>
+      </div>
+
+      <div class="info-box warning">
+        <div class="info-box-title">⚠️ 损耗不均衡问题</div>
+        <p>在传统 NPC 拓扑中，T2、T3 损耗远高于 T1、T4，导致内管结温过高成为功率输出的瓶颈。ANPC 通过<strong>交替切换 OL / OU 零态</strong>，将 T5、T6 的导通损耗轮流分担，显著改善了器件间的热均衡，从而提升整机功率密度上限。</p>
+      </div>
+
+      <h3 class="subsection-heading">损耗均衡策略</h3>
+      <p>常用的 ANPC 损耗均衡策略包括：</p>
+      <ol>
+        <li><strong>固定零态分配</strong>：全程使用 OL 或全程使用 OU，适合简单控制场景，但 T5 或 T6 单侧过热。</li>
+        <li><strong>周期轮换</strong>：每个基波周期交替一次 OL/OU，损耗在两管之间对称分配，热均衡效果好。</li>
+        <li><strong>实时温度反馈</strong>：根据 T5、T6 结温实时调整 OL/OU 比例，实现最优热管理，适合高性能场合。</li>
+      </ol>
+
+      <div class="info-box tip">
+        <div class="info-box-title">💡 设计建议</div>
+        <p>在设计 ANPC 控制程序时，推荐默认采用<strong>周期轮换策略</strong>，并在散热条件受限时叠加温度反馈，以兼顾实现简洁性与热管理效果。</p>
+      </div>
+
+    </div><!-- end doc-page -->
+  </main><!-- end content -->
+
+</div><!-- end layout -->
+
+<script src="js/main.js"></script>
+</body>
+</html>

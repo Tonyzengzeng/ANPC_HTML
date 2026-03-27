@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#fff;font-family:"Microsoft YaHei",sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:100vh;overflow:hidden;padding:8px 0 0}
+.tip-bar{font-size:11px;color:#888;margin-bottom:4px}
+svg{flex-shrink:0;cursor:default}
+#tooltip{position:fixed;pointer-events:none;background:#1a1a2e;color:#fff;padding:8px 12px;border-radius:6px;font-size:11.5px;line-height:1.65;max-width:230px;display:none;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.hov{cursor:pointer}
+</style>
+</head>
+<body>
+<div class="tip-bar">鼠标悬停器件可查看详细说明</div>
+<div id="tooltip"></div>
+
+<svg viewBox="0 0 520 590" width="450" height="383">
+
+<!-- ══ DC 母线 ══ -->
+<line x1="80" y1="30"  x2="260" y2="30"  stroke="#555" stroke-width="2.5"/>
+<line x1="80" y1="555" x2="260" y2="555" stroke="#555" stroke-width="2.5"/>
+<line x1="80" y1="30"  x2="80"  y2="555" stroke="#888" stroke-width="1.8"/>
+<text x="14" y="35"  fill="#c0392b" font-size="12" font-family="monospace" font-weight="700">+Vdc/2</text>
+<text x="14" y="560" fill="#2980b9" font-size="12" font-family="monospace" font-weight="700">−Vdc/2</text>
+
+<!-- ══ 电容 C1 ══ -->
+<g class="hov" data-tip="C1：上半直流母线电容&#10;连接正母线 P 与中性点 O&#10;维持 +Vdc/2 直流电压稳定&#10;中点电位偏移会影响谐波性能">
+  <line x1="80" y1="30"  x2="80" y2="258" stroke="#555" stroke-width="1.8"/>
+  <line x1="60" y1="262" x2="100" y2="262" stroke="#555" stroke-width="3.5"/>
+  <line x1="60" y1="272" x2="100" y2="272" stroke="#555" stroke-width="3.5"/>
+  <line x1="80" y1="272" x2="80" y2="280" stroke="#555" stroke-width="1.8"/>
+  <text x="48" y="269" fill="#666" font-size="10" font-family="monospace" text-anchor="end">C1</text>
+</g>
+
+<!-- ══ 电容 C2 ══ -->
+<g class="hov" data-tip="C2：下半直流母线电容&#10;连接中性点 O 与负母线 N&#10;维持 −Vdc/2 直流电压稳定&#10;C1=C2 时中点电压为零">
+  <line x1="80" y1="280" x2="80" y2="286" stroke="#555" stroke-width="1.8"/>
+  <line x1="60" y1="286" x2="100" y2="286" stroke="#555" stroke-width="3.5"/>
+  <line x1="60" y1="296" x2="100" y2="296" stroke="#555" stroke-width="3.5"/>
+  <line x1="80" y1="296" x2="80" y2="555" stroke="#555" stroke-width="1.8"/>
+  <text x="48" y="295" fill="#666" font-size="10" font-family="monospace" text-anchor="end">C2</text>
+</g>
+
+<!-- O 中性点 -->
+<circle cx="80" cy="280" r="5" fill="#27ae60"/>
+<text x="26" y="284" fill="#27ae60" font-size="12" font-family="monospace" font-weight="700">O</text>
+<line x1="80" y1="280" x2="170" y2="280" stroke="#555" stroke-width="1.8"/>
+
+<!-- ══ 主柱导线 ══ -->
+<line x1="260" y1="30"  x2="260" y2="50"  stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="120" x2="260" y2="130" stroke="#555" stroke-width="1.8"/>
+<circle cx="260" cy="130" r="4" fill="#555"/>
+<line x1="170" y1="130" x2="260" y2="130" stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="130" x2="260" y2="140" stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="210" x2="260" y2="280" stroke="#555" stroke-width="1.8"/>
+<circle cx="260" cy="280" r="5.5" fill="#8e44ad"/>
+<line x1="260" y1="280" x2="460" y2="280" stroke="#8e44ad" stroke-width="2.2"/>
+<text x="466" y="276" fill="#8e44ad" font-size="13" font-family="monospace" font-weight="700">AC</text>
+<text x="380" y="296" fill="#8e44ad" font-size="10" font-family="monospace">→ 负载</text>
+<line x1="260" y1="280" x2="260" y2="350" stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="420" x2="260" y2="430" stroke="#555" stroke-width="1.8"/>
+<circle cx="260" cy="430" r="4" fill="#555"/>
+<line x1="170" y1="430" x2="260" y2="430" stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="430" x2="260" y2="440" stroke="#555" stroke-width="1.8"/>
+<line x1="260" y1="510" x2="260" y2="555" stroke="#555" stroke-width="1.8"/>
+
+<!-- 钳位柱导线 -->
+<line x1="170" y1="130" x2="170" y2="155" stroke="#555" stroke-width="1.8"/>
+<line x1="170" y1="225" x2="170" y2="280" stroke="#555" stroke-width="1.8"/>
+<line x1="170" y1="280" x2="170" y2="345" stroke="#555" stroke-width="1.8"/>
+<line x1="170" y1="415" x2="170" y2="430" stroke="#555" stroke-width="1.8"/>
+
+<!-- node 标注 -->
+<text x="265" y="127" fill="#555" font-size="9" font-family="monospace">node_A</text>
+<text x="265" y="427" fill="#555" font-size="9" font-family="monospace">node_B</text>
+
+<!-- ══ T1 ══ -->
+<g class="hov" transform="translate(244,50)"
+   data-tip="T1 — 上外侧开关管&#10;位置：P 母线 → node_A&#10;导通状态：P 态（正电平）&#10;关断时承受 Vdc/2 电压&#10;与 T4 对称，损耗以开关损耗为主">
+  <rect x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(99,102,241,.08)" stroke="#818cf8" stroke-width="1.5"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#333" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#333" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#333" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#333" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#333" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#333"/>
+  <line x1="28" y1="0"  x2="28" y2="22" stroke="#999" stroke-width="1.3"/>
+  <line x1="22" y1="22" x2="34" y2="22" stroke="#999" stroke-width="2"/>
+  <polygon points="28,22 22,40 34,40" fill="none" stroke="#999" stroke-width="1.4"/>
+  <line x1="28" y1="40" x2="28" y2="70" stroke="#999" stroke-width="1.3"/>
+  <text x="37" y="35" fill="#999" font-size="8" font-family="monospace">D1</text>
+  <text x="-20" y="38" fill="#4f46e5" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T1</text>
+  <text x="-20" y="51" fill="#818cf8" font-size="9" text-anchor="end">外管</text>
+</g>
+
+<!-- ══ T2 ══ -->
+<g class="hov" transform="translate(244,140)"
+   data-tip="T2 — 上内侧开关管&#10;位置：node_A → AC 输出&#10;导通状态：P 态 和 OL 态&#10;开关动作频率最高，损耗最大&#10;是热设计的关键器件之一">
+  <rect x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(99,102,241,.08)" stroke="#818cf8" stroke-width="1.5"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#333" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#333" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#333" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#333" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#333" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#333"/>
+  <line x1="28" y1="0"  x2="28" y2="22" stroke="#999" stroke-width="1.3"/>
+  <line x1="22" y1="22" x2="34" y2="22" stroke="#999" stroke-width="2"/>
+  <polygon points="28,22 22,40 34,40" fill="none" stroke="#999" stroke-width="1.4"/>
+  <line x1="28" y1="40" x2="28" y2="70" stroke="#999" stroke-width="1.3"/>
+  <text x="37" y="35" fill="#999" font-size="8" font-family="monospace">D2</text>
+  <text x="-20" y="38" fill="#4f46e5" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T2</text>
+  <text x="-20" y="51" fill="#818cf8" font-size="9" text-anchor="end">内管</text>
+</g>
+
+<!-- ══ T3 ══ -->
+<g class="hov" transform="translate(244,350)"
+   data-tip="T3 — 下内侧开关管&#10;位置：AC 输出 → node_B&#10;导通状态：OL态、OU态 和 N 态&#10;与 T2 对称，损耗特性相同&#10;体二极管 D3 在续流时导通">
+  <rect x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(99,102,241,.08)" stroke="#818cf8" stroke-width="1.5"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#333" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#333" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#333" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#333" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#333" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#333"/>
+  <line x1="28" y1="0"  x2="28" y2="22" stroke="#999" stroke-width="1.3"/>
+  <line x1="22" y1="22" x2="34" y2="22" stroke="#999" stroke-width="2"/>
+  <polygon points="28,22 22,40 34,40" fill="none" stroke="#999" stroke-width="1.4"/>
+  <line x1="28" y1="40" x2="28" y2="70" stroke="#999" stroke-width="1.3"/>
+  <text x="37" y="35" fill="#999" font-size="8" font-family="monospace">D3</text>
+  <text x="-20" y="38" fill="#4f46e5" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T3</text>
+  <text x="-20" y="51" fill="#818cf8" font-size="9" text-anchor="end">内管</text>
+</g>
+
+<!-- ══ T4 ══ -->
+<g class="hov" transform="translate(244,440)"
+   data-tip="T4 — 下外侧开关管&#10;位置：node_B → N 母线&#10;导通状态：OU 态 和 N 态（负电平）&#10;与 T1 对称，损耗以开关损耗为主">
+  <rect x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(99,102,241,.08)" stroke="#818cf8" stroke-width="1.5"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#333" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#333" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#333" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#333" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#333" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#333"/>
+  <line x1="28" y1="0"  x2="28" y2="22" stroke="#999" stroke-width="1.3"/>
+  <line x1="22" y1="22" x2="34" y2="22" stroke="#999" stroke-width="2"/>
+  <polygon points="28,22 22,40 34,40" fill="none" stroke="#999" stroke-width="1.4"/>
+  <line x1="28" y1="40" x2="28" y2="70" stroke="#999" stroke-width="1.3"/>
+  <text x="37" y="35" fill="#999" font-size="8" font-family="monospace">D4</text>
+  <text x="-20" y="38" fill="#4f46e5" font-size="12" font-family="Microsoft YaHei" font-weight="700" text-anchor="end">T4</text>
+  <text x="-20" y="51" fill="#818cf8" font-size="9" text-anchor="end">外管</text>
+</g>
+
+<!-- ══ T5（上钳位）══ -->
+<g class="hov" transform="translate(154,155)"
+   data-tip="T5 — 有源上钳位开关&#10;位置：node_A ↔ O（中性点）&#10;C→E 方向：node_A → O（向下）&#10;导通状态：&#10;  OL 态（提供续流路径）&#10;  N 态（钳位 node_A 至 O）&#10;体二极管 D5：O→node_A 方向&#10;ANPC 优势：可主动均衡损耗">
+  <rect x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(16,185,129,.08)" stroke="#10b981" stroke-width="1.5"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#333" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#333" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#333" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#333" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#333" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#333"/>
+  <line x1="28" y1="0"  x2="28" y2="22" stroke="#999" stroke-width="1.3"/>
+  <line x1="22" y1="22" x2="34" y2="22" stroke="#999" stroke-width="2"/>
+  <polygon points="28,22 22,40 34,40" fill="none" stroke="#999" stroke-width="1.4"/>
+  <line x1="28" y1="40" x2="28" y2="70" stroke="#999" stroke-width="1.3"/>
+  <text x="37" y="35" fill="#999" font-size="8" font-family="monospace">D5</text>
+  <text x="114" y="35" fill="#059669" font-size="12" font-family="Microsoft YaHei" font-weight="700">T5</text>
+  <text x="114" y="48" fill="#10b981" font-size="9">上钳位</text>
+  <text x="114" y="60" fill="#6ee7b7" font-size="8">nodeA→O</text>
+</g>
+
+<!-- ══ T6（下钳位）══ -->
+<g class="hov" transform="translate(154,345)"
+   data-tip="T6 — 有源下钳位开关&#10;位置：O（中性点）↔ node_B&#10;C→E 方向：O → node_B（向下）&#10;导通状态：&#10;  P 态（钳位 node_B 至 O）&#10;  OU 态（提供续流路径）&#10;体二极管 D6：node_B→O 方向&#10;与 T5 交替工作实现损耗均衡">
+  <rect x="-14" y="-4" width="52" height="78" rx="4" fill="rgba(16,185,129,.08)" stroke="#10b981" stroke-width="1.5"/>
+  <line x1="-14" y1="35" x2="-2" y2="35" stroke="#333" stroke-width="1.5"/>
+  <line x1="0"   y1="14" x2="0"  y2="56" stroke="#333" stroke-width="2.5"/>
+  <line x1="6"   y1="14" x2="6"  y2="56" stroke="#333" stroke-width="2"/>
+  <line x1="6"   y1="20" x2="16" y2="8"  stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="8"  x2="16" y2="0"  stroke="#333" stroke-width="1.8"/>
+  <line x1="6"   y1="48" x2="16" y2="60" stroke="#333" stroke-width="1.8"/>
+  <line x1="16"  y1="60" x2="16" y2="70" stroke="#333" stroke-width="1.8"/>
+  <polygon points="10,52 16,60 10,58" fill="#333"/>
+  <line x1="28" y1="0"  x2="28" y2="22" stroke="#999" stroke-width="1.3"/>
+  <line x1="22" y1="22" x2="34" y2="22" stroke="#999" stroke-width="2"/>
+  <polygon points="28,22 22,40 34,40" fill="none" stroke="#999" stroke-width="1.4"/>
+  <line x1="28" y1="40" x2="28" y2="70" stroke="#999" stroke-width="1.3"/>
+  <text x="37" y="35" fill="#999" font-size="8" font-family="monospace">D6</text>
+  <text x="114" y="35" fill="#059669" font-size="12" font-family="Microsoft YaHei" font-weight="700">T6</text>
+  <text x="114" y="48" fill="#10b981" font-size="9">下钳位</text>
+  <text x="114" y="60" fill="#6ee7b7" font-size="8">O→nodeB</text>
+</g>
+
+<!-- 图例 -->
+<text x="260" y="580" fill="#999" font-size="10" text-anchor="middle" font-family="Microsoft YaHei">
+  ANPC 单相桥臂拓扑 · 含 IGBT+体二极管 符号 · 绿色=钳位管 · 蓝色=主管
+</text>
+</svg>
+
+<script>
+var tt=document.getElementById('tooltip');
+document.querySelectorAll('.hov').forEach(function(el){
+  el.addEventListener('mouseenter',function(e){
+    var tip=el.getAttribute('data-tip');
+    if(!tip)return;
+    tt.style.display='block';
+    tt.innerHTML=tip.replace(/&#10;/g,'<br>');
+  });
+  el.addEventListener('mousemove',function(e){
+    tt.style.left=(e.clientX+14)+'px';
+    tt.style.top=(e.clientY-8)+'px';
+  });
+  el.addEventListener('mouseleave',function(){tt.style.display='none';});
+});
+</script>
+</body>
+</html>

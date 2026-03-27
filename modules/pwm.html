@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#fff;font-family:"Microsoft YaHei",sans-serif;display:flex;flex-direction:column;align-items:center;padding:8px 0 4px;height:100vh;overflow:hidden;}
+.ctrl{display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:6px;font-size:12px;color:#444;}
+label{display:flex;align-items:center;gap:5px;}
+input[type=range]{width:90px;}
+.val{font-weight:700;color:#1a1a2e;min-width:32px;display:inline-block;}
+button{padding:5px 14px;border:none;border-radius:16px;cursor:pointer;font-size:12px;font-weight:600;background:#1a1a2e;color:#fff;transition:all .2s;}
+button.on{background:#27ae60;}
+canvas{border:1px solid #e0e0e0;border-radius:4px;background:#fafafa;}
+.legend{display:flex;gap:16px;font-size:11px;margin-top:4px;flex-wrap:wrap;justify-content:center;}
+.leg-item{display:flex;align-items:center;gap:4px;}
+.leg-dot{width:24px;height:3px;border-radius:2px;}
+</style>
+</head>
+<body>
+
+<div class="ctrl">
+  <label>调制比 m<sub>a</sub>：
+    <input type="range" id="rMa" min="0.5" max="1.0" step="0.01" value="0.9" oninput="draw()">
+    <span class="val" id="vMa">0.90</span>
+  </label>
+  <label>载波频率比：
+    <input type="range" id="rFr" min="5" max="20" step="1" value="9" oninput="draw()">
+    <span class="val" id="vFr">9</span>
+  </label>
+  <label>初始相位：
+    <input type="range" id="rPhi" min="0" max="360" step="5" value="0" oninput="draw()">
+    <span class="val" id="vPhi">0°</span>
+  </label>
+  <button id="btnAnim" onclick="toggleAnim()">▶ 动态演示</button>
+</div>
+
+<canvas id="cv" width="880" height="340"></canvas>
+
+<div class="legend">
+  <div class="leg-item"><div class="leg-dot" style="background:#e74c3c"></div> 调制波 v_ref</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#2980b9"></div> 载波 1（上三角）</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#27ae60"></div> 载波 2（下三角）</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#8e44ad"></div> 输出 PWM 电压</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#f39c12"></div> 当前状态区间</div>
+</div>
+
+<script>
+var cv = document.getElementById('cv');
+var ctx = cv.getContext('2d');
+var W = cv.width, H = cv.height;
+var animId = null, animOn = false, phi0 = 0, lastT = null;
+
+function getMa(){ return parseFloat(document.getElementById('rMa').value); }
+function getFr(){ return parseInt(document.getElementById('rFr').value); }
+function getPhi(){ return parseFloat(document.getElementById('rPhi').value)*Math.PI/180; }
+
+function toggleAnim(){
+  animOn = !animOn;
+  var btn = document.getElementById('btnAnim');
+  if(animOn){
+    btn.textContent='⏸ 暂停'; btn.classList.add('on');
+    lastT = null;
+    animId = requestAnimationFrame(animStep);
+  } else {
+    btn.textContent='▶ 动态演示'; btn.classList.remove('on');
+    cancelAnimationFrame(animId);
+  }
+}
+
+function animStep(ts){
+  if(!lastT) lastT = ts;
+  var dt = (ts - lastT)/1000;
+  lastT = ts;
+  phi0 = (phi0 + dt*1.2) % (2*Math.PI);
+  document.getElementById('rPhi').value = phi0*180/Math.PI;
+  document.getElementById('vPhi').textContent = Math.round(phi0*180/Math.PI)+'°';
+  draw();
+  animId = requestAnimationFrame(animStep);
+}
+
+function draw(){
+  var ma = getMa();
+  var fr = getFr();
+  var phi = getPhi();
+
+  document.getElementById('vMa').textContent  = ma.toFixed(2);
+  document.getElementById('vFr').textContent  = fr;
+  document.getElementById('vPhi').textContent = Math.round(getPhi()*180/Math.PI)+'°';
+
+  ctx.clearRect(0,0,W,H);
+
+  // 区域划分
+  var PAD_L=50, PAD_R=20, PAD_T=18, PAD_B=20;
+  var panelH = Math.floor((H-PAD_T-PAD_B)/2);
+  // 上面板: 调制波 + 载波
+  var yT = PAD_T, hT = panelH - 4;
+  // 下面板: 输出PWM
+  var yB = PAD_T + panelH + 4, hB = H - yB - PAD_B;
+
+  var XL = PAD_L, XR = W - PAD_R, XW = XR - XL;
+  var N = 1200; // 采样点数
+
+  // ── 背景 ──
+  ctx.fillStyle='#fafafa';
+  ctx.fillRect(XL,yT,XW,hT);
+  ctx.fillRect(XL,yB,XW,hB);
+
+  // ── 网格 ──
+  function grid(y0, h, steps){
+    ctx.strokeStyle='#e8e8e8'; ctx.lineWidth=0.8;
+    for(var i=0;i<=steps;i++){
+      var y = y0 + h*i/steps;
+      ctx.beginPath(); ctx.moveTo(XL,y); ctx.lineTo(XR,y); ctx.stroke();
+    }
+    // 垂直网格（一个基波周期分8格）
+    for(var k=0;k<=8;k++){
+      var x = XL + XW*k/8;
+      ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y0+h); ctx.stroke();
+    }
+  }
+  grid(yT,hT,4); grid(yB,hB,4);
+
+  // ── 坐标轴 ──
+  ctx.strokeStyle='#aaa'; ctx.lineWidth=1;
+  // 上面板 x轴
+  var yMid = yT + hT/2;
+  ctx.beginPath(); ctx.moveTo(XL,yMid); ctx.lineTo(XR,yMid); ctx.stroke();
+  // 上面板 y轴
+  ctx.beginPath(); ctx.moveTo(XL,yT); ctx.lineTo(XL,yT+hT); ctx.stroke();
+  // 下面板 x轴（零线）
+  var yZero = yB + hB*0.5;
+  ctx.beginPath(); ctx.moveTo(XL,yZero); ctx.lineTo(XR,yZero); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(XL,yB); ctx.lineTo(XL,yB+hB); ctx.stroke();
+
+  // ── 标签 ──
+  ctx.fillStyle='#888'; ctx.font='10px Arial'; ctx.textAlign='right';
+  ['+1','+0.5','0','-0.5','-1'].forEach(function(v,i){
+    ctx.fillText(v, XL-4, yT + hT*i/4 + 3);
+  });
+  ctx.fillText('+Vdc/2', XL-4, yB+4);
+  ctx.fillText('0', XL-4, yZero+3);
+  ctx.fillText('-Vdc/2', XL-4, yB+hB);
+
+  ctx.font='11px "Microsoft YaHei"'; ctx.textAlign='left';
+  ctx.fillStyle='#555';
+  ctx.fillText('调制波 & 载波', XL+4, yT+12);
+  ctx.fillText('输出 PWM 电压', XL+4, yB+12);
+
+  // ── 坐标变换函数 ──
+  function xOf(i){ return XL + XW*i/(N-1); }
+  function yOfT(val){ return yMid - val*(hT/2)*0.92; }  // 上面板，归一化[-1,1]
+  function yOfB(level){ // level: 1=+Vdc/2, 0=0, -1=-Vdc/2
+    return yZero - level*(hB*0.42);
+  }
+
+  // ── 数据计算 ──
+  var vref=[],car1=[],car2=[],pwm=[];
+  for(var i=0;i<N;i++){
+    var t = i/(N-1); // 0..1 = one fundamental period
+    var th = 2*Math.PI*t + phi;
+    vref[i] = ma * Math.sin(th);
+
+    // 载波1: 0~+1 三角波
+    var ct = (t*fr) % 1;
+    car1[i] = ct < 0.5 ? 4*ct : 4*(1-ct);      // 0..1 triangle
+    car1[i] = 2*car1[i] - 1;                    // -> -1..1 → keep 0..1: back to -1..1
+    // Actually carrier 1 is in range 0..1 (above neutral)
+    car1[i] = (ct < 0.5 ? 4*ct - 1 : 3 - 4*ct); // -1..1 range for carrier1
+
+    // Carrier 1 (upper): oscillates between 0 and 1
+    var c1raw = ct < 0.5 ? 2*ct : 2*(1-ct);  // 0..1 triangle
+    car1[i] = c1raw;  // upper carrier: 0 to 1
+
+    // Carrier 2 (lower): oscillates between -1 and 0
+    car2[i] = c1raw - 1;  // -1 to 0 triangle
+
+    // PWM logic
+    var v = vref[i];
+    if(v >= car1[i]){
+      pwm[i] = 1;   // P
+    } else if(v >= 0 && v < car1[i]){
+      pwm[i] = 0;   // O (zero)
+    } else if(v < 0 && v >= car2[i]){
+      pwm[i] = 0;   // O (zero)
+    } else {
+      pwm[i] = -1;  // N
+    }
+  }
+
+  // ── 画载波1（蓝）──
+  ctx.strokeStyle='#2980b9'; ctx.lineWidth=1.5; ctx.setLineDash([]);
+  ctx.beginPath();
+  for(var i=0;i<N;i++){
+    var x=xOf(i), y=yOfT(car1[i]);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  // ── 画载波2（绿）──
+  ctx.strokeStyle='#27ae60'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  for(var i=0;i<N;i++){
+    var x=xOf(i), y=yOfT(car2[i]);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  // ── 画调制波（红）──
+  ctx.strokeStyle='#e74c3c'; ctx.lineWidth=2.5;
+  ctx.beginPath();
+  for(var i=0;i<N;i++){
+    var x=xOf(i), y=yOfT(vref[i]);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  // ── 上面板：填色区间（P/O/N 区域着色）──
+  var prevState = pwm[0];
+  var segStart = 0;
+  function fillSeg(s, e, lv){
+    var cols = {1:'rgba(231,76,60,0.08)', 0:'rgba(39,174,96,0.12)', '-1':'rgba(41,128,185,0.08)'};
+    ctx.fillStyle = cols[lv] || 'transparent';
+    ctx.fillRect(xOf(s), yT+1, xOf(e)-xOf(s), hT-2);
+  }
+  for(var i=1;i<N;i++){
+    if(pwm[i]!==prevState || i===N-1){
+      fillSeg(segStart, i, prevState);
+      segStart = i; prevState = pwm[i];
+    }
+  }
+
+  // ── 下面板：画PWM阶梯输出（紫）──
+  ctx.strokeStyle='#8e44ad'; ctx.lineWidth=2.5; ctx.setLineDash([]);
+  ctx.beginPath();
+  for(var i=0;i<N;i++){
+    var x=xOf(i), y=yOfB(pwm[i]);
+    if(i===0){ ctx.moveTo(x,y); }
+    else {
+      if(pwm[i]!==pwm[i-1]){
+        ctx.lineTo(xOf(i-1), yOfB(pwm[i-1]));
+        ctx.lineTo(xOf(i-1), yOfB(pwm[i]));
+      }
+      ctx.lineTo(x, y);
+    }
+  }
+  ctx.stroke();
+
+  // ── 填色 PWM 区域 ──
+  prevState = pwm[0]; segStart = 0;
+  function fillPWM(s,e,lv){
+    if(lv===1){ctx.fillStyle='rgba(231,76,60,0.15)';}
+    else if(lv===0){ctx.fillStyle='rgba(39,174,96,0.1)';}
+    else{ctx.fillStyle='rgba(41,128,185,0.15)';}
+    var y0=yOfB(lv), y1=yZero;
+    if(lv<0){var tmp=y0;y0=y1;y1=tmp;}
+    ctx.fillRect(xOf(s),Math.min(y0,y1),xOf(e)-xOf(s),Math.abs(y0-y1));
+  }
+  for(var i=1;i<N;i++){
+    if(pwm[i]!==prevState||i===N-1){
+      fillPWM(segStart,i,prevState);
+      segStart=i; prevState=pwm[i];
+    }
+  }
+
+  // ── 当前时刻竖线（phi位置）──
+  var curT = (phi/(2*Math.PI)) - Math.floor(phi/(2*Math.PI));
+  var xCur = XL + XW*curT;
+  ctx.strokeStyle='#f39c12'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(xCur,yT); ctx.lineTo(xCur,yT+hT); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(xCur,yB); ctx.lineTo(xCur,yB+hB); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── 状态文字 ──
+  var curIdx = Math.round(curT*(N-1));
+  if(curIdx>=N) curIdx=N-1;
+  var stateNames = {1:'P态 (+Vdc/2)', 0:'O态 (0)', '-1':'N态 (-Vdc/2)'};
+  var stateColors= {1:'#e74c3c', 0:'#27ae60', '-1':'#2980b9'};
+  var sv = pwm[curIdx];
+  ctx.fillStyle=stateColors[sv]; ctx.font='bold 12px "Microsoft YaHei"'; ctx.textAlign='left';
+  ctx.fillText('当前状态：'+ stateNames[sv], XL+8, yB+hB-6);
+
+  // ── X轴时间刻度 ──
+  ctx.fillStyle='#888'; ctx.font='10px Arial'; ctx.textAlign='center';
+  ['0','T/4','T/2','3T/4','T'].forEach(function(v,i){
+    ctx.fillText(v, XL+XW*i/4, yT+hT+13);
+  });
+}
+
+draw();
+</script>
+</body>
+</html>
