@@ -4,17 +4,21 @@
 <meta charset="UTF-8">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:#fff;font-family:"Microsoft YaHei",sans-serif;display:flex;flex-direction:column;align-items:center;padding:8px 0 4px;height:100vh;overflow:hidden;}
-.ctrl{display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:6px;font-size:12px;color:#444;}
-label{display:flex;align-items:center;gap:5px;}
-input[type=range]{width:90px;}
-.val{font-weight:700;color:#1a1a2e;min-width:32px;display:inline-block;}
-button{padding:5px 14px;border:none;border-radius:16px;cursor:pointer;font-size:12px;font-weight:600;background:#1a1a2e;color:#fff;transition:all .2s;}
-button.on{background:#27ae60;}
-canvas{border:1px solid #e0e0e0;border-radius:4px;background:#fafafa;}
-.legend{display:flex;gap:16px;font-size:11px;margin-top:4px;flex-wrap:wrap;justify-content:center;}
-.leg-item{display:flex;align-items:center;gap:4px;}
-.leg-dot{width:24px;height:3px;border-radius:2px;}
+body{background:#fff;font-family:"Microsoft YaHei",sans-serif;
+     display:flex;flex-direction:column;height:100vh;overflow:hidden;padding:5px 6px 3px;}
+.ctrl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+      justify-content:center;margin-bottom:3px;font-size:11px;color:#444;flex-shrink:0;}
+label{display:flex;align-items:center;gap:3px;}
+input[type=range]{width:76px;}
+.val{font-weight:700;color:#1a1a2e;min-width:28px;display:inline-block;}
+button{padding:3px 11px;border:none;border-radius:13px;cursor:pointer;
+       font-size:11px;font-weight:600;background:#1a1a2e;color:#fff;transition:all .2s;}
+button.on{background:#059669;}
+canvas{flex:1;min-height:0;width:100%;display:block;}
+.legend{display:flex;gap:9px;font-size:9.5px;margin-top:2px;
+        flex-wrap:wrap;justify-content:center;flex-shrink:0;}
+.li{display:flex;align-items:center;gap:3px;}
+.ld{width:16px;height:3px;border-radius:1px;}
 </style>
 </head>
 <body>
@@ -24,270 +28,367 @@ canvas{border:1px solid #e0e0e0;border-radius:4px;background:#fafafa;}
     <input type="range" id="rMa" min="0.5" max="1.0" step="0.01" value="0.9" oninput="draw()">
     <span class="val" id="vMa">0.90</span>
   </label>
-  <label>载波频率比：
+  <label>载波频率比 f<sub>r</sub>：
     <input type="range" id="rFr" min="5" max="20" step="1" value="9" oninput="draw()">
     <span class="val" id="vFr">9</span>
   </label>
-  <label>初始相位：
+  <label>相位：
     <input type="range" id="rPhi" min="0" max="360" step="5" value="0" oninput="draw()">
     <span class="val" id="vPhi">0°</span>
   </label>
   <button id="btnAnim" onclick="toggleAnim()">▶ 动态演示</button>
 </div>
 
-<canvas id="cv" width="880" height="340"></canvas>
+<canvas id="cv"></canvas>
 
 <div class="legend">
-  <div class="leg-item"><div class="leg-dot" style="background:#e74c3c"></div> 调制波 v_ref</div>
-  <div class="leg-item"><div class="leg-dot" style="background:#2980b9"></div> 载波 1（上三角）</div>
-  <div class="leg-item"><div class="leg-dot" style="background:#27ae60"></div> 载波 2（下三角）</div>
-  <div class="leg-item"><div class="leg-dot" style="background:#8e44ad"></div> 输出 PWM 电压</div>
-  <div class="leg-item"><div class="leg-dot" style="background:#f39c12"></div> 当前状态区间</div>
+  <div class="li"><div class="ld" style="background:#e74c3c"></div>调制波</div>
+  <div class="li"><div class="ld" style="background:#2980b9"></div>载波1(上)</div>
+  <div class="li"><div class="ld" style="background:#27ae60"></div>载波2(下)</div>
+  <div class="li"><div class="ld" style="background:#dc2626"></div>T1·P态</div>
+  <div class="li"><div class="ld" style="background:#2563eb"></div>T2·内上</div>
+  <div class="li"><div class="ld" style="background:#0891b2;border:1px dashed #0891b2"></div>T3·内下(虚)</div>
+  <div class="li"><div class="ld" style="background:#d97706"></div>T4·N态</div>
+  <div class="li"><div class="ld" style="background:#7c3aed"></div>T5·钳位</div>
+  <div class="li"><div class="ld" style="background:#0d9488;border:1px dashed #0d9488"></div>T6·钳位(虚)</div>
+  <div class="li"><div class="ld" style="background:#6d28d9"></div>PWM输出</div>
 </div>
 
 <script>
-var cv = document.getElementById('cv');
-var ctx = cv.getContext('2d');
-var W = cv.width, H = cv.height;
-var animId = null, animOn = false, phi0 = 0, lastT = null;
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let animOn=false, animId=null, phi0=0, lastT=null;
+
+// Color palette
+const C = {
+  mod:'#e74c3c', car1:'#2980b9', car2:'#27ae60', pwmLine:'#6d28d9',
+  cursor:'#f59e0b', bg:'#f8fafc', grid:'#e2e8f0',
+  T1:'#dc2626', T2:'#2563eb', T3:'#0891b2',
+  T4:'#d97706', T5:'#7c3aed', T6:'#0d9488',
+};
+function rgba(hex,a){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
 
 function getMa(){ return parseFloat(document.getElementById('rMa').value); }
 function getFr(){ return parseInt(document.getElementById('rFr').value); }
 function getPhi(){ return parseFloat(document.getElementById('rPhi').value)*Math.PI/180; }
 
 function toggleAnim(){
-  animOn = !animOn;
-  var btn = document.getElementById('btnAnim');
-  if(animOn){
-    btn.textContent='⏸ 暂停'; btn.classList.add('on');
-    lastT = null;
-    animId = requestAnimationFrame(animStep);
-  } else {
-    btn.textContent='▶ 动态演示'; btn.classList.remove('on');
-    cancelAnimationFrame(animId);
-  }
+  animOn=!animOn;
+  const btn=document.getElementById('btnAnim');
+  if(animOn){btn.textContent='⏸ 暂停';btn.classList.add('on');lastT=null;animId=requestAnimationFrame(step);}
+  else{btn.textContent='▶ 动态演示';btn.classList.remove('on');cancelAnimationFrame(animId);}
+}
+function step(ts){
+  if(!lastT)lastT=ts;
+  phi0=(phi0+(ts-lastT)/1000*1.2)%(2*Math.PI);
+  lastT=ts;
+  document.getElementById('rPhi').value=phi0*180/Math.PI;
+  document.getElementById('vPhi').textContent=Math.round(phi0*180/Math.PI)+'°';
+  draw(); animId=requestAnimationFrame(step);
 }
 
-function animStep(ts){
-  if(!lastT) lastT = ts;
-  var dt = (ts - lastT)/1000;
-  lastT = ts;
-  phi0 = (phi0 + dt*1.2) % (2*Math.PI);
-  document.getElementById('rPhi').value = phi0*180/Math.PI;
-  document.getElementById('vPhi').textContent = Math.round(phi0*180/Math.PI)+'°';
-  draw();
-  animId = requestAnimationFrame(animStep);
+function resize(){
+  const dpr=window.devicePixelRatio||1;
+  cv.width=cv.offsetWidth*dpr; cv.height=cv.offsetHeight*dpr;
+  ctx.scale(dpr,dpr); draw();
 }
 
 function draw(){
-  var ma = getMa();
-  var fr = getFr();
-  var phi = getPhi();
+  const ma=getMa(), fr=getFr(), phi=getPhi();
+  document.getElementById('vMa').textContent=ma.toFixed(2);
+  document.getElementById('vFr').textContent=fr;
+  document.getElementById('vPhi').textContent=Math.round(phi*180/Math.PI)+'°';
 
-  document.getElementById('vMa').textContent  = ma.toFixed(2);
-  document.getElementById('vFr').textContent  = fr;
-  document.getElementById('vPhi').textContent = Math.round(getPhi()*180/Math.PI)+'°';
-
+  const W=cv.offsetWidth, H=cv.offsetHeight;
   ctx.clearRect(0,0,W,H);
 
-  // 区域划分
-  var PAD_L=50, PAD_R=20, PAD_T=18, PAD_B=20;
-  var panelH = Math.floor((H-PAD_T-PAD_B)/2);
-  // 上面板: 调制波 + 载波
-  var yT = PAD_T, hT = panelH - 4;
-  // 下面板: 输出PWM
-  var yB = PAD_T + panelH + 4, hB = H - yB - PAD_B;
+  // ── Layout ──
+  const PL=52, PR=14, PT=5, PB=14;
+  const XL=PL, XR=W-PR, XW=XR-XL;
+  const avH=H-PT-PB;
 
-  var XL = PAD_L, XR = W - PAD_R, XW = XR - XL;
-  var N = 1200; // 采样点数
+  // Row heights
+  const modH  = Math.round(avH*0.28);   // carrier+mod panel
+  const dH    = Math.round(avH*0.095);  // each drive row (×4)
+  const pwmH  = Math.round(avH*0.215);  // output voltage panel
+  const GAP   = 4;
 
-  // ── 背景 ──
-  ctx.fillStyle='#fafafa';
-  ctx.fillRect(XL,yT,XW,hT);
-  ctx.fillRect(XL,yB,XW,hB);
+  const yMod  = PT;
+  const yD0   = yMod+modH+GAP;
+  const yD1   = yD0+dH;
+  const yD2   = yD1+dH;
+  const yD3   = yD2+dH;
+  const yPwm  = yD3+dH+GAP;
 
-  // ── 网格 ──
-  function grid(y0, h, steps){
-    ctx.strokeStyle='#e8e8e8'; ctx.lineWidth=0.8;
-    for(var i=0;i<=steps;i++){
-      var y = y0 + h*i/steps;
-      ctx.beginPath(); ctx.moveTo(XL,y); ctx.lineTo(XR,y); ctx.stroke();
-    }
-    // 垂直网格（一个基波周期分8格）
-    for(var k=0;k<=8;k++){
-      var x = XL + XW*k/8;
-      ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y0+h); ctx.stroke();
-    }
-  }
-  grid(yT,hT,4); grid(yB,hB,4);
+  // ── Signal computation ──
+  const N=1200;
+  const vref=[],c1=[],c2=[],pwm=[];
+  const gT1=[],gT2=[],gT3=[],gT4=[],gT5=[],gT6=[];
 
-  // ── 坐标轴 ──
-  ctx.strokeStyle='#aaa'; ctx.lineWidth=1;
-  // 上面板 x轴
-  var yMid = yT + hT/2;
-  ctx.beginPath(); ctx.moveTo(XL,yMid); ctx.lineTo(XR,yMid); ctx.stroke();
-  // 上面板 y轴
-  ctx.beginPath(); ctx.moveTo(XL,yT); ctx.lineTo(XL,yT+hT); ctx.stroke();
-  // 下面板 x轴（零线）
-  var yZero = yB + hB*0.5;
-  ctx.beginPath(); ctx.moveTo(XL,yZero); ctx.lineTo(XR,yZero); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(XL,yB); ctx.lineTo(XL,yB+hB); ctx.stroke();
+  for(let i=0;i<N;i++){
+    const t=i/(N-1), th=2*Math.PI*t+phi;
+    vref[i]=ma*Math.sin(th);
+    const ct=(t*fr)%1, raw=ct<0.5?2*ct:2*(1-ct);
+    c1[i]=raw; c2[i]=raw-1;
 
-  // ── 标签 ──
-  ctx.fillStyle='#888'; ctx.font='10px Arial'; ctx.textAlign='right';
-  ['+1','+0.5','0','-0.5','-1'].forEach(function(v,i){
-    ctx.fillText(v, XL-4, yT + hT*i/4 + 3);
-  });
-  ctx.fillText('+Vdc/2', XL-4, yB+4);
-  ctx.fillText('0', XL-4, yZero+3);
-  ctx.fillText('-Vdc/2', XL-4, yB+hB);
-
-  ctx.font='11px "Microsoft YaHei"'; ctx.textAlign='left';
-  ctx.fillStyle='#555';
-  ctx.fillText('调制波 & 载波', XL+4, yT+12);
-  ctx.fillText('输出 PWM 电压', XL+4, yB+12);
-
-  // ── 坐标变换函数 ──
-  function xOf(i){ return XL + XW*i/(N-1); }
-  function yOfT(val){ return yMid - val*(hT/2)*0.92; }  // 上面板，归一化[-1,1]
-  function yOfB(level){ // level: 1=+Vdc/2, 0=0, -1=-Vdc/2
-    return yZero - level*(hB*0.42);
-  }
-
-  // ── 数据计算 ──
-  var vref=[],car1=[],car2=[],pwm=[];
-  for(var i=0;i<N;i++){
-    var t = i/(N-1); // 0..1 = one fundamental period
-    var th = 2*Math.PI*t + phi;
-    vref[i] = ma * Math.sin(th);
-
-    // 载波1: 0~+1 三角波
-    var ct = (t*fr) % 1;
-    car1[i] = ct < 0.5 ? 4*ct : 4*(1-ct);      // 0..1 triangle
-    car1[i] = 2*car1[i] - 1;                    // -> -1..1 → keep 0..1: back to -1..1
-    // Actually carrier 1 is in range 0..1 (above neutral)
-    car1[i] = (ct < 0.5 ? 4*ct - 1 : 3 - 4*ct); // -1..1 range for carrier1
-
-    // Carrier 1 (upper): oscillates between 0 and 1
-    var c1raw = ct < 0.5 ? 2*ct : 2*(1-ct);  // 0..1 triangle
-    car1[i] = c1raw;  // upper carrier: 0 to 1
-
-    // Carrier 2 (lower): oscillates between -1 and 0
-    car2[i] = c1raw - 1;  // -1 to 0 triangle
-
-    // PWM logic
-    var v = vref[i];
-    if(v >= car1[i]){
-      pwm[i] = 1;   // P
-    } else if(v >= 0 && v < car1[i]){
-      pwm[i] = 0;   // O (zero)
-    } else if(v < 0 && v >= car2[i]){
-      pwm[i] = 0;   // O (zero)
-    } else {
-      pwm[i] = -1;  // N
+    const v=vref[i];
+    if(v>c1[i]){            // P  state
+      gT1[i]=1;gT2[i]=1;gT3[i]=0;gT4[i]=0;gT5[i]=0;gT6[i]=1;pwm[i]=1;
+    } else if(v>=0){         // OU state (positive zero, upper clamp)
+      gT1[i]=0;gT2[i]=1;gT3[i]=0;gT4[i]=0;gT5[i]=1;gT6[i]=0;pwm[i]=0;
+    } else if(v>c2[i]){      // OL state (negative zero, lower clamp)
+      gT1[i]=0;gT2[i]=0;gT3[i]=1;gT4[i]=0;gT5[i]=0;gT6[i]=1;pwm[i]=0;
+    } else {                  // N  state
+      gT1[i]=0;gT2[i]=0;gT3[i]=1;gT4[i]=1;gT5[i]=1;gT6[i]=0;pwm[i]=-1;
     }
   }
 
-  // ── 画载波1（蓝）──
-  ctx.strokeStyle='#2980b9'; ctx.lineWidth=1.5; ctx.setLineDash([]);
-  ctx.beginPath();
-  for(var i=0;i<N;i++){
-    var x=xOf(i), y=yOfT(car1[i]);
-    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  }
-  ctx.stroke();
+  // ── Common helpers ──
+  const xOf = i => XL+XW*i/(N-1);
 
-  // ── 画载波2（绿）──
-  ctx.strokeStyle='#27ae60'; ctx.lineWidth=1.5;
-  ctx.beginPath();
-  for(var i=0;i<N;i++){
-    var x=xOf(i), y=yOfT(car2[i]);
-    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  }
-  ctx.stroke();
-
-  // ── 画调制波（红）──
-  ctx.strokeStyle='#e74c3c'; ctx.lineWidth=2.5;
-  ctx.beginPath();
-  for(var i=0;i<N;i++){
-    var x=xOf(i), y=yOfT(vref[i]);
-    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  }
-  ctx.stroke();
-
-  // ── 上面板：填色区间（P/O/N 区域着色）──
-  var prevState = pwm[0];
-  var segStart = 0;
-  function fillSeg(s, e, lv){
-    var cols = {1:'rgba(231,76,60,0.08)', 0:'rgba(39,174,96,0.12)', '-1':'rgba(41,128,185,0.08)'};
-    ctx.fillStyle = cols[lv] || 'transparent';
-    ctx.fillRect(xOf(s), yT+1, xOf(e)-xOf(s), hT-2);
-  }
-  for(var i=1;i<N;i++){
-    if(pwm[i]!==prevState || i===N-1){
-      fillSeg(segStart, i, prevState);
-      segStart = i; prevState = pwm[i];
-    }
+  function panelBg(y0,h,yDiv,xDiv){
+    ctx.fillStyle=C.bg; ctx.fillRect(XL,y0,XW,h);
+    ctx.strokeStyle=C.grid; ctx.lineWidth=0.7;
+    for(let k=0;k<=yDiv;k++){const yy=y0+h*k/yDiv;ctx.beginPath();ctx.moveTo(XL,yy);ctx.lineTo(XR,yy);ctx.stroke();}
+    for(let k=0;k<=(xDiv||8);k++){const xx=XL+XW*k/(xDiv||8);ctx.beginPath();ctx.moveTo(xx,y0);ctx.lineTo(xx,y0+h);ctx.stroke();}
+    ctx.strokeStyle='#cbd5e1';ctx.lineWidth=0.8;ctx.strokeRect(XL,y0,XW,h);
   }
 
-  // ── 下面板：画PWM阶梯输出（紫）──
-  ctx.strokeStyle='#8e44ad'; ctx.lineWidth=2.5; ctx.setLineDash([]);
-  ctx.beginPath();
-  for(var i=0;i<N;i++){
-    var x=xOf(i), y=yOfB(pwm[i]);
-    if(i===0){ ctx.moveTo(x,y); }
-    else {
-      if(pwm[i]!==pwm[i-1]){
-        ctx.lineTo(xOf(i-1), yOfB(pwm[i-1]));
-        ctx.lineTo(xOf(i-1), yOfB(pwm[i]));
+  // State shading (P=red, O=green, N=blue)
+  function shadeStates(y0,h){
+    const cols={1:'rgba(220,38,38,0.07)',0:'rgba(5,150,105,0.07)','-1':'rgba(37,99,235,0.07)'};
+    let prev=pwm[0],s=0;
+    for(let i=1;i<=N;i++){
+      const cur=i<N?pwm[i]:pwm[N-1];
+      if(cur!==prev||i===N){
+        ctx.fillStyle=cols[prev];
+        ctx.fillRect(xOf(s),y0+1,xOf(Math.min(i,N-1))-xOf(s),h-2);
+        s=i;prev=cur;
       }
-      ctx.lineTo(x, y);
-    }
-  }
-  ctx.stroke();
-
-  // ── 填色 PWM 区域 ──
-  prevState = pwm[0]; segStart = 0;
-  function fillPWM(s,e,lv){
-    if(lv===1){ctx.fillStyle='rgba(231,76,60,0.15)';}
-    else if(lv===0){ctx.fillStyle='rgba(39,174,96,0.1)';}
-    else{ctx.fillStyle='rgba(41,128,185,0.15)';}
-    var y0=yOfB(lv), y1=yZero;
-    if(lv<0){var tmp=y0;y0=y1;y1=tmp;}
-    ctx.fillRect(xOf(s),Math.min(y0,y1),xOf(e)-xOf(s),Math.abs(y0-y1));
-  }
-  for(var i=1;i<N;i++){
-    if(pwm[i]!==prevState||i===N-1){
-      fillPWM(segStart,i,prevState);
-      segStart=i; prevState=pwm[i];
     }
   }
 
-  // ── 当前时刻竖线（phi位置）──
-  var curT = (phi/(2*Math.PI)) - Math.floor(phi/(2*Math.PI));
-  var xCur = XL + XW*curT;
-  ctx.strokeStyle='#f39c12'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
-  ctx.beginPath(); ctx.moveTo(xCur,yT); ctx.lineTo(xCur,yT+hT); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(xCur,yB); ctx.lineTo(xCur,yB+hB); ctx.stroke();
+  // Draw analog polyline
+  function polyline(arr,yMid,hSpan,color,lw,dash){
+    ctx.strokeStyle=color;ctx.lineWidth=lw||1.5;ctx.setLineDash(dash||[]);
+    ctx.beginPath();
+    for(let i=0;i<N;i++){const x=xOf(i),y=yMid-arr[i]*(hSpan/2)*0.92;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+    ctx.stroke();ctx.setLineDash([]);
+  }
+
+  // Draw digital HIGH/LOW in a band [yTop..yBot]
+  function digital(arr,yTop,yBot,color,dash){
+    const yHi=yTop+1.5, yLo=yBot-1.5;
+    // Filled area under HIGH
+    ctx.fillStyle=rgba(color,0.15);
+    let s=0,inH=arr[0]===1;
+    for(let i=1;i<=N;i++){
+      const v=i<N?arr[i]:arr[N-1];
+      if((v===1)!==inH||i===N){
+        if(inH)ctx.fillRect(xOf(s),yHi,xOf(Math.min(i,N-1))-xOf(s),yLo-yHi);
+        s=i;inH=v===1;
+      }
+    }
+    // Step waveform line
+    ctx.strokeStyle=color;ctx.lineWidth=1.7;ctx.setLineDash(dash||[]);
+    ctx.beginPath();
+    for(let i=0;i<N;i++){
+      const x=xOf(i), y=arr[i]===1?yHi:yLo;
+      if(i===0){ctx.moveTo(x,y);continue;}
+      if(arr[i]!==arr[i-1]){ctx.lineTo(xOf(i-1),y);ctx.lineTo(x,y);}
+      else ctx.lineTo(x,y);
+    }
+    ctx.stroke();ctx.setLineDash([]);
+  }
+
+  function lbl(s,x,y,col,sz,align){
+    ctx.fillStyle=col||'#6b7280';
+    ctx.font=(sz||9)+'px '+(sz>=11?'"Microsoft YaHei"':'Arial');
+    ctx.textAlign=align||'right';
+    ctx.fillText(s,x,y);
+  }
+
+  // ════════════════════════════════════════
+  // 1. Carrier + Modulation wave
+  // ════════════════════════════════════════
+  panelBg(yMod,modH,4,8);
+  shadeStates(yMod,modH);
+
+  const yMidMod=yMod+modH/2;
+  ctx.strokeStyle='#d1d5db';ctx.lineWidth=0.8;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(XL,yMidMod);ctx.lineTo(XR,yMidMod);ctx.stroke();
   ctx.setLineDash([]);
 
-  // ── 状态文字 ──
-  var curIdx = Math.round(curT*(N-1));
-  if(curIdx>=N) curIdx=N-1;
-  var stateNames = {1:'P态 (+Vdc/2)', 0:'O态 (0)', '-1':'N态 (-Vdc/2)'};
-  var stateColors= {1:'#e74c3c', 0:'#27ae60', '-1':'#2980b9'};
-  var sv = pwm[curIdx];
-  ctx.fillStyle=stateColors[sv]; ctx.font='bold 12px "Microsoft YaHei"'; ctx.textAlign='left';
-  ctx.fillText('当前状态：'+ stateNames[sv], XL+8, yB+hB-6);
+  lbl('+1',XL-4,yMod+9);
+  lbl('0', XL-4,yMidMod+4);
+  lbl('-1',XL-4,yMod+modH);
+  lbl('调制波 & 双载波',XL+4,yMod+12,'#475569',11,'left');
 
-  // ── X轴时间刻度 ──
-  ctx.fillStyle='#888'; ctx.font='10px Arial'; ctx.textAlign='center';
-  ['0','T/4','T/2','3T/4','T'].forEach(function(v,i){
-    ctx.fillText(v, XL+XW*i/4, yT+hT+13);
+  // State zone labels on top edge
+  {
+    const labels=[{v:1,t:'P'},{v:0,t:'O'},{v:-1,t:'N'}];
+    const lc={1:'#dc2626',0:'#059669','-1':'#2563eb'};
+    let prev=pwm[0],s=0;
+    ctx.font='bold 8px Arial';ctx.textAlign='center';
+    for(let i=1;i<=N;i++){
+      const cur=i<N?pwm[i]:pwm[N-1];
+      if(cur!==prev||i===N){
+        const midX=(xOf(s)+xOf(Math.min(i,N-1)))/2;
+        ctx.fillStyle=lc[prev]||'#555';
+        if(xOf(Math.min(i,N-1))-xOf(s)>18)ctx.fillText(prev===1?'P':prev===0?'O':'N',midX,yMod+10);
+        s=i;prev=cur;
+      }
+    }
+  }
+
+  polyline(c1,yMidMod,modH,C.car1,1.4);
+  polyline(c2,yMidMod,modH,C.car2,1.4);
+  polyline(vref,yMidMod,modH,C.mod,2.3);
+
+  // ════════════════════════════════════════
+  // 2. Drive signal rows
+  // ════════════════════════════════════════
+
+  // ── Row 0: T1 (P state only, outer upper) ──
+  {
+    const y0=yD0,h=dH;
+    panelBg(y0,h,1,8);shadeStates(y0,h);
+    // Low baseline
+    ctx.strokeStyle='#e5e7eb';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(XL,y0+h*0.86);ctx.lineTo(XR,y0+h*0.86);ctx.stroke();
+    digital(gT1,y0+h*0.12,y0+h*0.88,C.T1);
+    lbl('T1',XL-4,y0+h*0.55+4,C.T1,11,'right');
+    lbl('P态·外管',XL-4,y0+h*0.55+14,'#94a3b8',7.5,'right');
+  }
+
+  // ── Row 1: T2 / T3 (complementary inner switches) ──
+  {
+    const y0=yD1,h=dH,yMid2=y0+h/2;
+    panelBg(y0,h,1,8);shadeStates(y0,h);
+    // Divider between T2 and T3
+    ctx.strokeStyle='#94a3b8';ctx.lineWidth=0.6;ctx.setLineDash([2,2]);
+    ctx.beginPath();ctx.moveTo(XL,yMid2);ctx.lineTo(XR,yMid2);ctx.stroke();
+    ctx.setLineDash([]);
+    digital(gT2,y0+h*0.05,yMid2-1,C.T2);          // T2 upper half
+    digital(gT3,yMid2+1,y0+h*0.95,C.T3,[4,2]);     // T3 lower half (dashed)
+    lbl('T2',XL-4,yMid2-4,C.T2,10,'right');
+    lbl('T3',XL-4,yMid2+12,C.T3,10,'right');
+    lbl('互补内管',XL-4,y0+h/2+3,'#94a3b8',7.5,'right');
+    // Complementary indicator
+    ctx.fillStyle='#e0e7ff';ctx.font='7px monospace';ctx.textAlign='left';
+    ctx.fillText('T3=T̄2',XR+1,yMid2+8);
+  }
+
+  // ── Row 2: T4 (N state only, outer lower) ──
+  {
+    const y0=yD2,h=dH;
+    panelBg(y0,h,1,8);shadeStates(y0,h);
+    ctx.strokeStyle='#e5e7eb';ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(XL,y0+h*0.86);ctx.lineTo(XR,y0+h*0.86);ctx.stroke();
+    digital(gT4,y0+h*0.12,y0+h*0.88,C.T4);
+    lbl('T4',XL-4,y0+h*0.55+4,C.T4,11,'right');
+    lbl('N态·外管',XL-4,y0+h*0.55+14,'#94a3b8',7.5,'right');
+  }
+
+  // ── Row 3: T5 / T6 (complementary clamp switches) ──
+  {
+    const y0=yD3,h=dH,yMid2=y0+h/2;
+    panelBg(y0,h,1,8);shadeStates(y0,h);
+    ctx.strokeStyle='#94a3b8';ctx.lineWidth=0.6;ctx.setLineDash([2,2]);
+    ctx.beginPath();ctx.moveTo(XL,yMid2);ctx.lineTo(XR,yMid2);ctx.stroke();
+    ctx.setLineDash([]);
+    digital(gT5,y0+h*0.05,yMid2-1,C.T5);          // T5 upper half
+    digital(gT6,yMid2+1,y0+h*0.95,C.T6,[4,2]);     // T6 lower half (dashed)
+    lbl('T5',XL-4,yMid2-4,C.T5,10,'right');
+    lbl('T6',XL-4,yMid2+12,C.T6,10,'right');
+    lbl('互补钳位',XL-4,y0+h/2+3,'#94a3b8',7.5,'right');
+    ctx.fillStyle='#ede9fe';ctx.font='7px monospace';ctx.textAlign='left';
+    ctx.fillText('T6=T̄5',XR+1,yMid2+8);
+  }
+
+  // ════════════════════════════════════════
+  // 3. Output PWM voltage
+  // ════════════════════════════════════════
+  panelBg(yPwm,pwmH,2,8);
+  shadeStates(yPwm,pwmH);
+
+  const yZero=yPwm+pwmH/2, span=0.42;
+  ctx.strokeStyle='#d1d5db';ctx.lineWidth=0.8;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(XL,yZero);ctx.lineTo(XR,yZero);ctx.stroke();
+  ctx.setLineDash([]);
+
+  lbl('+Vdc/2',XL-4,yPwm+10,'#6b7280',8.5);
+  lbl('0',     XL-4,yZero+4,'#6b7280',8.5);
+  lbl('-Vdc/2',XL-4,yPwm+pwmH,'#6b7280',8.5);
+  lbl('输出 PWM 电压',XL+4,yPwm+12,'#475569',11,'left');
+
+  // State fill under PWM
+  {
+    const yOf=v=>yZero-v*(pwmH/2)*span;
+    let prev=pwm[0],s=0;
+    for(let i=1;i<=N;i++){
+      const cur=i<N?pwm[i]:pwm[N-1];
+      if(cur!==prev||i===N){
+        const y0h=yOf(prev),y1h=yZero;
+        ctx.fillStyle=prev===1?'rgba(220,38,38,0.15)':prev===0?'rgba(5,150,105,0.10)':'rgba(37,99,235,0.15)';
+        ctx.fillRect(xOf(s),Math.min(y0h,y1h),xOf(Math.min(i,N-1))-xOf(s),Math.abs(y0h-y1h));
+        s=i;prev=cur;
+      }
+    }
+    // PWM step line
+    ctx.strokeStyle=C.pwmLine;ctx.lineWidth=2;
+    ctx.beginPath();
+    for(let i=0;i<N;i++){
+      const x=xOf(i),y=yOf(pwm[i]);
+      if(i===0){ctx.moveTo(x,y);continue;}
+      if(pwm[i]!==pwm[i-1]){ctx.lineTo(xOf(i-1),y);ctx.lineTo(x,y);}
+      else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+
+  // ════════════════════════════════════════
+  // 4. Current-phase cursor
+  // ════════════════════════════════════════
+  let curT=(phi/(2*Math.PI))%1; if(curT<0)curT+=1;
+  const xCur=XL+XW*curT;
+  ctx.strokeStyle=C.cursor;ctx.lineWidth=1.3;ctx.setLineDash([3,2]);
+  ctx.beginPath();ctx.moveTo(xCur,yMod);ctx.lineTo(xCur,yPwm+pwmH);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Current state readout
+  const ci=Math.min(Math.round(curT*(N-1)),N-1), sv=pwm[ci];
+  const sn={1:'P态  +Vdc/2',0:'O态   0 V','-1':'N态  -Vdc/2'};
+  const sc={1:C.T1,0:'#059669','-1':C.T4};
+  ctx.fillStyle=sc[sv];ctx.font='bold 10px "Microsoft YaHei"';ctx.textAlign='right';
+  ctx.fillText('当前：'+sn[sv],XR,yPwm+pwmH-4);
+
+  // Active gate signals at cursor
+  const gates=[
+    ['T1',gT1[ci],C.T1],['T2',gT2[ci],C.T2],['T3',gT3[ci],C.T3],
+    ['T4',gT4[ci],C.T4],['T5',gT5[ci],C.T5],['T6',gT6[ci],C.T6],
+  ];
+  ctx.font='8.5px "Microsoft YaHei"';ctx.textAlign='left';
+  const onGates=gates.filter(g=>g[1]);
+  let gx=XL+4;
+  ctx.fillStyle='#64748b';ctx.fillText('ON:',gx,yPwm+pwmH-4);gx+=22;
+  onGates.forEach(([name,,col])=>{
+    ctx.fillStyle=col;ctx.font='bold 8.5px "Microsoft YaHei"';
+    ctx.fillText(name,gx,yPwm+pwmH-4);gx+=20;
+  });
+
+  // ── X-axis time labels ──
+  ctx.fillStyle='#9ca3af';ctx.font='8.5px Arial';ctx.textAlign='center';
+  ['0','T/8','T/4','3T/8','T/2','5T/8','3T/4','7T/8','T'].forEach((v,i)=>{
+    ctx.fillText(v,XL+XW*i/8,yPwm+pwmH+12);
   });
 }
 
-draw();
+window.addEventListener('resize',resize);
+resize();
 </script>
 </body>
 </html>
