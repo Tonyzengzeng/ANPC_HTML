@@ -59,6 +59,16 @@
       </div>
     </div>
 
+    <div class="toc-chapter" data-chapter-id="ch5">
+      <div class="toc-chapter-title">
+        <span class="toc-arrow">▶</span>第五章 PN切换过渡状态
+      </div>
+      <div class="toc-children">
+        <a class="toc-section" href="#sec-5-1">5.1 零电压换流原理</a>
+        <a class="toc-section" href="#sec-5-2">5.2 切换序列交互分析</a>
+      </div>
+    </div>
+
   </nav><!-- end sidebar -->
 
   <!-- ===== 右侧内容区 ===== -->
@@ -368,6 +378,76 @@
       <div class="info-box tip">
         <div class="info-box-title">💡 设计建议</div>
         <p>在设计 ANPC 控制程序时，推荐默认采用<strong>周期轮换策略</strong>，并在散热条件受限时叠加温度反馈，以兼顾实现简洁性与热管理效果。</p>
+      </div>
+
+      <hr class="chapter-divider">
+
+      <!-- ══════════════════════════════════════════ -->
+      <!--            第五章                          -->
+      <!-- ══════════════════════════════════════════ -->
+      <h1 class="chapter-heading"
+          id="ch5"
+          data-section data-chapter="ch5"
+          data-label="第五章 PN切换过渡状态">
+        第五章　PN 切换过渡状态分析（方案B）
+      </h1>
+
+      <p>在 ANPC 逆变器中，正电平（P）与负电平（N）之间的直接切换会导致开关管两端承受全直流母线电压（V<sub>dc</sub>），开关损耗较大。方案B 通过引入<strong>过渡零态</strong>——<strong>OU₁</strong>（T5、T6 同时导通，上零态过渡）和 <strong>OL₁</strong>（T5、T6 同时导通，下零态过渡），在切换前先将节点电压箝位到中性点 O，实现<strong>零电压软切换</strong>。</p>
+
+      <!-- ─── 5.1 ─── -->
+      <h2 class="section-heading"
+          id="sec-5-1"
+          data-section data-chapter="ch5"
+          data-label="5.1 零电压换流原理">
+        5.1　零电压换流原理
+      </h2>
+
+      <p>方案B 的核心是利用 T5、T6 同时导通形成低阻抗换流路径：</p>
+
+      <table class="doc-table">
+        <thead>
+          <tr><th>过渡态</th><th>T5</th><th>T6</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>OU₁</strong></td>
+            <td class="td-on">ON</td><td class="td-on">ON</td>
+            <td>上/下钳位同时导通，node_A 与 node_B 均箝位到 O；用于 P→N 或 N→P 过渡的上半段</td>
+          </tr>
+          <tr>
+            <td><strong>OL₁</strong></td>
+            <td class="td-on">ON</td><td class="td-on">ON</td>
+            <td>同 OU₁，T5、T6 均 ON；用于 P→N 或 N→P 过渡的下半段，切换时刻在载波谷值附近</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>OU₁ 与 OL₁ 在开关状态上相同（T5=T6=ON），区别在于<strong>切换时序上的位置</strong>：OU₁ 发生在正向过渡路径中（调制波与上载波交叉处），OL₁ 发生在负向过渡路径中（调制波与下载波交叉处）。</p>
+
+      <div class="info-box">
+        <div class="info-box-title">📌 装载时刻定义</div>
+        <p>
+          <strong>波峰装载</strong>：PWM 寄存器在载波峰值（三角波顶点）时刻更新，换流动作发生在峰值附近，此时载波上升/下降率最大，di/dt 相对较高。<br>
+          <strong>波谷装载</strong>：PWM 寄存器在载波谷值（三角波底点）时刻更新，换流动作发生在谷值附近，此时电流纹波最小，软切换效果更优。
+        </p>
+      </div>
+
+      <!-- ─── 5.2 ─── -->
+      <h2 class="section-heading"
+          id="sec-5-2"
+          data-section data-chapter="ch5"
+          data-label="5.2 切换序列交互分析">
+        5.2　切换序列交互分析
+      </h2>
+
+      <p>下方交互图展示了四种切换场景的完整驱动时序：P→N 波峰装载、P→N 波谷装载、N→P 波峰装载、N→P 波谷装载。每种场景包含 5 个时间阶段，彩色数字波形显示 T1～T6 的驱动信号，颜色表格呈现各阶段开关状态。</p>
+
+      <div class="module-box">
+        <div class="module-box-header">
+          <span class="icon">🔀</span> 交互图 — PN 切换过渡状态时序（选择切换方向与装载模式）
+        </div>
+        <iframe src="modules/switching.html" title="PN切换过渡状态"></iframe>
+        <div class="module-caption">图 5-1：方案B PN 切换过渡状态 · OU₁/OL₁ 零电压软切换驱动时序交互分析</div>
       </div>
 
     </div><!-- end doc-page -->
