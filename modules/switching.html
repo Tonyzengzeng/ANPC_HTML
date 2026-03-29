@@ -2,177 +2,96 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PN切换过渡状态分析</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Segoe UI', sans-serif;
-    background: #1a1a2e;
-    color: #e0e0e0;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .header {
-    background: #16213e;
-    padding: 10px 16px;
-    border-bottom: 1px solid #0f3460;
-    flex-shrink: 0;
-  }
-  .header h2 { font-size: 15px; color: #a8d8ea; font-weight: 600; }
-  .header p { font-size: 11px; color: #888; margin-top: 2px; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #1a1a2e; color: #e0e0e0;
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+.header {
+  background: #16213e; padding: 8px 16px;
+  border-bottom: 1px solid #0f3460; flex-shrink: 0;
+}
+.header h2 { font-size: 14px; color: #a8d8ea; }
+.header p  { font-size: 10px; color: #666; margin-top: 1px; }
 
-  .scenario-bar {
-    display: flex;
-    gap: 8px;
-    padding: 8px 16px;
-    background: #16213e;
-    border-bottom: 1px solid #0f3460;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-  .scenario-btn {
-    padding: 6px 14px;
-    border: 1px solid #0f3460;
-    border-radius: 4px;
-    background: #1a1a2e;
-    color: #aaa;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.2s;
-  }
-  .scenario-btn:hover { border-color: #a8d8ea; color: #a8d8ea; }
-  .scenario-btn.active {
-    background: #0f3460;
-    border-color: #a8d8ea;
-    color: #a8d8ea;
-    font-weight: 600;
-  }
+.scenario-bar {
+  display: flex; gap: 8px; padding: 7px 16px;
+  background: #16213e; border-bottom: 1px solid #0f3460;
+  flex-shrink: 0; flex-wrap: wrap;
+}
+.scenario-btn {
+  padding: 5px 13px; border: 1px solid #0f3460; border-radius: 4px;
+  background: #1a1a2e; color: #aaa; cursor: pointer; font-size: 12px;
+  transition: all .2s;
+}
+.scenario-btn:hover { border-color: #a8d8ea; color: #a8d8ea; }
+.scenario-btn.active { background: #0f3460; border-color: #a8d8ea; color: #a8d8ea; font-weight: 600; }
 
-  .main-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: 10px 16px;
-    gap: 10px;
-    min-height: 0;
-  }
+.main-area {
+  flex: 1; display: flex; flex-direction: column;
+  overflow: hidden; padding: 8px 14px; gap: 8px; min-height: 0;
+}
 
-  /* Waveform + Table side by side */
-  .content-row {
-    display: flex;
-    gap: 12px;
-    flex: 1;
-    min-height: 0;
-  }
+/* ── carrier panel ── */
+.carrier-panel {
+  flex: 0 0 42%; background: #16213e; border: 1px solid #0f3460;
+  border-radius: 6px; display: flex; flex-direction: column; min-height: 0;
+}
+.panel-title { font-size: 11px; color: #888; padding: 4px 10px; border-bottom: 1px solid #0f3460; flex-shrink: 0; }
+#carrierCanvas { flex: 1; width: 100%; display: block; min-height: 0; }
 
-  /* ---- Waveform Panel ---- */
-  .waveform-panel {
-    flex: 1.4;
-    background: #16213e;
-    border: 1px solid #0f3460;
-    border-radius: 6px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-  .panel-title {
-    font-size: 11px;
-    color: #888;
-    padding: 5px 10px;
-    border-bottom: 1px solid #0f3460;
-    flex-shrink: 0;
-  }
-  #waveCanvas {
-    flex: 1;
-    width: 100%;
-    display: block;
-    min-height: 0;
-  }
+/* ── bottom row ── */
+.bottom-row {
+  flex: 1; display: flex; gap: 8px; min-height: 0;
+}
 
-  /* ---- Gate Table Panel ---- */
-  .table-panel {
-    flex: 1;
-    background: #16213e;
-    border: 1px solid #0f3460;
-    border-radius: 6px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-  .gate-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    flex: 1;
-  }
-  .gate-table th {
-    background: #0f3460;
-    color: #a8d8ea;
-    padding: 6px 8px;
-    text-align: center;
-    font-weight: 600;
-    font-size: 11px;
-    border: 1px solid #1a3a6a;
-  }
-  .gate-table td {
-    padding: 7px 8px;
-    text-align: center;
-    border: 1px solid #1a3a6a;
-    font-weight: 600;
-    font-size: 12px;
-  }
-  .gate-table tr:first-child td { border-top: none; }
-  .switch-label { color: #ccc; font-weight: 700; font-size: 13px; }
+/* gate waveform */
+.wave-panel {
+  flex: 1.4; background: #16213e; border: 1px solid #0f3460;
+  border-radius: 6px; display: flex; flex-direction: column; min-width: 0;
+}
+#waveCanvas { flex: 1; width: 100%; display: block; min-height: 0; }
 
-  /* Cell colors */
-  .cell-on-p   { background: rgba(220,60,60,0.35);  color: #ff8a8a; }
-  .cell-on-n   { background: rgba(60,120,220,0.35); color: #88b4ff; }
-  .cell-on-t   { background: rgba(220,160,40,0.40); color: #ffd070; }  /* transition */
-  .cell-off    { background: rgba(40,40,60,0.5);    color: #555; }
-  .col-active  { background: rgba(255,255,255,0.04); }
+/* gate table */
+.table-panel {
+  flex: 1; background: #16213e; border: 1px solid #0f3460;
+  border-radius: 6px; overflow: auto; min-width: 0;
+}
+.gate-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.gate-table th {
+  background: #0f3460; color: #a8d8ea; padding: 5px 6px;
+  text-align: center; font-weight: 600; border: 1px solid #1a3a6a; font-size: 10px;
+  position: sticky; top: 0; z-index: 1;
+}
+.gate-table td { padding: 6px 6px; text-align: center; border: 1px solid #1a3a6a; font-weight: 600; font-size: 11px; }
+.sw-label { color: #ccc; font-weight: 700; font-size: 12px; }
+.cell-p  { background: rgba(220,60,60,.35);  color: #ff8a8a; }
+.cell-n  { background: rgba(60,120,220,.35); color: #88b4ff; }
+.cell-t  { background: rgba(220,160,40,.40); color: #ffd070; }
+.cell-off{ background: rgba(30,30,50,.6);    color: #444; }
 
-  /* ---- Sequence Info ---- */
-  .seq-panel {
-    background: #16213e;
-    border: 1px solid #0f3460;
-    border-radius: 6px;
-    padding: 8px 14px;
-    flex-shrink: 0;
-    font-size: 12px;
-  }
-  .seq-label { color: #888; margin-bottom: 4px; font-size: 11px; }
-  .seq-states { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-  .seq-state {
-    padding: 3px 10px;
-    border-radius: 3px;
-    font-weight: 700;
-    font-size: 13px;
-    letter-spacing: 0.5px;
-  }
-  .seq-arrow { color: #555; font-size: 14px; }
-  .state-p  { background: rgba(220,60,60,0.3);  color: #ff8a8a; border: 1px solid #cc3030; }
-  .state-n  { background: rgba(60,120,220,0.3); color: #88b4ff; border: 1px solid #3060cc; }
-  .state-t  { background: rgba(220,160,40,0.3); color: #ffd070; border: 1px solid #cc9020; }
-  .state-o  { background: rgba(80,180,80,0.25);  color: #88ee88; border: 1px solid #308830; }
-  .seq-desc {
-    margin-top: 6px;
-    color: #aaa;
-    font-size: 11px;
-    line-height: 1.6;
-  }
+/* seq strip */
+.seq-strip {
+  background: #16213e; border: 1px solid #0f3460; border-radius: 6px;
+  padding: 6px 12px; flex-shrink: 0; font-size: 11px; display: flex; align-items: flex-start; gap: 12px;
+}
+.seq-states { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+.ss { padding: 2px 9px; border-radius: 3px; font-weight: 700; font-size: 12px; }
+.sa { color: #555; font-size: 12px; }
+.sp { background: rgba(220,60,60,.3);  color: #ff8a8a; border:1px solid #cc3030; }
+.sn { background: rgba(60,120,220,.3); color: #88b4ff; border:1px solid #3060cc; }
+.st { background: rgba(220,160,40,.3); color: #ffd070; border:1px solid #cc9020; }
+.seq-desc { color: #999; font-size: 10px; line-height: 1.6; }
 </style>
 </head>
 <body>
 
 <div class="header">
   <h2>方案B — PN 切换过渡状态分析</h2>
-  <p>OU₁ / OL₁ 为零电压换流过渡态（T5、T6 同时导通），实现软切换</p>
+  <p>顶部图：载波三角 + 调制波前/后瞬时值 → 推导发波驱动逻辑（OU₁/OL₁ 为零电压换流过渡态）</p>
 </div>
 
 <div class="scenario-bar">
@@ -183,330 +102,463 @@
 </div>
 
 <div class="main-area">
-  <div class="content-row">
-    <!-- Waveform -->
-    <div class="waveform-panel">
-      <div class="panel-title">驱动波形时序图（5个阶段）</div>
+
+  <div class="carrier-panel">
+    <div class="panel-title">① 载波 & 调制波瞬时值比较 → 推导开关状态</div>
+    <canvas id="carrierCanvas"></canvas>
+  </div>
+
+  <div class="bottom-row">
+    <div class="wave-panel">
+      <div class="panel-title">② 各管驱动波形（由①推导）</div>
       <canvas id="waveCanvas"></canvas>
     </div>
-
-    <!-- Gate Table -->
     <div class="table-panel">
       <table class="gate-table" id="gateTable"></table>
     </div>
   </div>
 
-  <!-- Sequence Info -->
-  <div class="seq-panel">
-    <div class="seq-label">状态序列</div>
+  <div class="seq-strip">
     <div class="seq-states" id="seqStates"></div>
-    <div class="seq-desc" id="seqDesc"></div>
+    <div class="seq-desc"   id="seqDesc"></div>
   </div>
+
 </div>
 
 <script>
-// ===================== Data =====================
+// ═══════════════════════════════════════════════════════
+//  Case data
+// ═══════════════════════════════════════════════════════
 const CASES = [
   {
     label: 'P → N · 波峰装载',
-    phases: ['P', 'OU₁', 'N', 'OL₁', 'N'],
-    T1: [1,0,0,0,0],
-    T2: [1,1,0,0,0],
-    T3: [0,0,1,1,1],
-    T4: [0,0,1,0,1],
-    T5: [0,1,1,1,1],
-    T6: [1,1,0,1,0],
-    desc: '波峰时刻（调制波 > 载波正峰），输出处于 P 态。过渡：P → OU₁（T5导通，T6未关断，零电压）→ N → OL₁（T6重新导通，T5未关断）→ N 稳定。OU₁ 和 OL₁ 均为 T5、T6 同时 ON 的零电压换流过渡态。'
+    phases: ['P','OU₁','N','OL₁','N'],
+    T1:[1,0,0,0,0], T2:[1,1,0,0,0], T3:[0,0,1,1,1],
+    T4:[0,0,1,0,1], T5:[0,1,1,1,1], T6:[1,1,0,1,0],
+    // Carrier: peak at center (0→1→0).  Loading moment: x=0.5
+    loadShape: 'peak',          // carrier1(t) peaks at t=0.5
+    vA: +0.60,                  // vref before loading
+    vB: -0.60,                  // vref after loading
+    // Phase boundary fractions (0..1) within the display window
+    // Derived from carrier intersection with vref values
+    // Left half:  carrier crosses vA=0.6 at t=0.30 → P/OU boundary
+    // Right half: carrier2 crosses vB=-0.6 at t=0.70 → OL/N boundary
+    pBounds: [0, 0.30, 0.50, 0.70, 0.84, 1.0],
+    desc: '波峰时调制波 vref 从 +0.60 跳变到 −0.60。\n左半周期：vref > 载波 → P；载波超过 0.60 → 插入 OU₁ 过渡。\n右半周期：载波谷侧 carrier₂ < −0.60 → 先呈 OL，插入 OL₁ 后跳 N 稳态。'
   },
   {
     label: 'P → N · 波谷装载',
-    phases: ['OU₁', 'P', 'OL₁', 'N', 'OL₁'],
-    T1: [0,1,0,0,0],
-    T2: [1,1,0,0,0],
-    T3: [0,0,1,1,1],
-    T4: [0,0,0,1,0],
-    T5: [1,0,1,1,1],
-    T6: [1,1,1,0,1],
-    desc: '波谷时刻（调制波 < 载波负峰），前置 OU₁ 过渡从 N 准备进入 P，随后 P → OL₁（T5与T6同时ON）→ N → OL₁ 再次换流，实现对称零电压切换。'
+    phases: ['OU₁','P','OL₁','N','OL₁'],
+    T1:[0,1,0,0,0], T2:[1,1,0,0,0], T3:[0,0,1,1,1],
+    T4:[0,0,0,1,0], T5:[1,0,1,1,1], T6:[1,1,1,0,1],
+    loadShape: 'valley',        // carrier peaks at edges, valley at 0.5
+    vA: +0.60,
+    vB: -0.60,
+    // Left half:  carrier falls 1→0; crosses vA=0.6 at t=0.20 → OU before P
+    // Right half: carrier2 rises 0→-1; crosses vB=-0.6 at t=0.80 → OL then OL₁
+    pBounds: [0, 0.20, 0.50, 0.67, 0.82, 1.0],
+    desc: '波谷时调制波 vref 从 +0.60 跳变到 −0.60。\n左半周期（载波下降）：载波 > 0.60 → OU₁；载波 < 0.60 → P 稳态。\n右半周期（载波上升）：先 OL₁ 过渡，再 N 稳态，结束再次 OL₁ 预备下次切换。'
   },
   {
     label: 'N → P · 波峰装载',
-    phases: ['OL₁', 'N', 'OU₁', 'P', 'OU₁'],
-    T1: [0,0,0,1,0],
-    T2: [0,0,1,1,1],
-    T3: [1,1,0,0,0],
-    T4: [0,1,0,0,0],
-    T5: [1,1,1,0,1],
-    T6: [1,0,1,1,1],
-    desc: '波峰装载 N→P 切换：首先经过 OL₁ 过渡态，N 稳定后，OU₁（T5、T6同时ON）→ P → OU₁ 维持软切换，完成 NP 换向。'
+    phases: ['OL₁','N','OU₁','P','OU₁'],
+    T1:[0,0,0,1,0], T2:[0,0,1,1,1], T3:[1,1,0,0,0],
+    T4:[0,1,0,0,0], T5:[1,1,1,0,1], T6:[1,0,1,1,1],
+    loadShape: 'peak',
+    vA: -0.60,
+    vB: +0.60,
+    // Left half:  carrier2 crosses vA=-0.6 at t=0.30 → N/OL boundary → OL₁ inserted
+    // Right half: carrier1 crosses vB=0.6 at t=0.70 → OU₁ then P
+    pBounds: [0, 0.18, 0.50, 0.70, 0.84, 1.0],
+    desc: '波峰时调制波 vref 从 −0.60 跳变到 +0.60。\n左半周期：vref < carrier₂ → N；carrier₂ 超越 −0.60 → 插入 OL₁ 过渡。\n右半周期：载波超过 0.60 → OU₁ 过渡 → P 稳态，结尾再次 OU₁ 预备续电平。'
   },
   {
     label: 'N → P · 波谷装载',
-    phases: ['N', 'OL₁', 'P', 'OU₁', 'P'],
-    T1: [0,0,1,0,1],
-    T2: [0,0,1,1,1],
-    T3: [1,1,0,0,0],
-    T4: [1,0,0,0,0],
-    T5: [1,1,0,1,0],
-    T6: [0,1,1,1,1],
-    desc: '波谷装载 N→P 切换：N 稳定，OL₁（零电压过渡）→ P → OU₁（T5、T6同时ON）→ P 稳定。换流时刻选在载波谷值，di/dt 最小，开关损耗低。'
+    phases: ['N','OL₁','P','OU₁','P'],
+    T1:[0,0,1,0,1], T2:[0,0,1,1,1], T3:[1,1,0,0,0],
+    T4:[1,0,0,0,0], T5:[1,1,0,1,0], T6:[0,1,1,1,1],
+    loadShape: 'valley',
+    vA: -0.60,
+    vB: +0.60,
+    // Left half:  carrier2 crosses vA=-0.6 at t=0.20 → insert OL₁ before P
+    // Right half: carrier1 crosses vB=0.6 at t=0.80 → P then OU₁
+    pBounds: [0, 0.30, 0.50, 0.70, 0.84, 1.0],
+    desc: '波谷时调制波 vref 从 −0.60 跳变到 +0.60。\n左半周期（载波下降）：vref < carrier₂ → N；接近谷值插入 OL₁ 过渡。\n右半周期（载波上升）：P 稳态，载波超过 0.60 → OU₁ 过渡 → P 续保。'
   }
 ];
 
-// State type classifier
+// ═══════════════════════════════════════════════════════
+//  Helpers
+// ═══════════════════════════════════════════════════════
 function stateType(s) {
-  if (s === 'P')  return 'p';
-  if (s === 'N')  return 'n';
-  if (s === 'OU₁' || s === 'OL₁') return 't';
-  return 'o';
+  if (s==='P')  return 'p';
+  if (s==='N')  return 'n';
+  return 't'; // OU₁, OL₁
 }
 
-// ===================== Gate Table Render =====================
-function renderTable(caseIdx) {
-  const c = CASES[caseIdx];
+// Carrier functions (t ∈ [0,1])
+function carrier1(t, shape) {
+  // shape='peak':   triangle 0→1→0
+  // shape='valley': triangle 1→0→1
+  const tri = t < 0.5 ? 2*t : 2*(1-t); // 0→1→0
+  return shape === 'peak' ? tri : 1 - tri;
+}
+function carrier2(t, shape) { return -carrier1(t, shape); }
+
+// Map voltage → pixel y within a given band
+function vy(v, yMid, halfH) { return yMid - v * halfH; }
+
+// ═══════════════════════════════════════════════════════
+//  Render gate table
+// ═══════════════════════════════════════════════════════
+function renderTable(c) {
   const tbl = document.getElementById('gateTable');
-  const switches = ['T1','T2','T3','T4','T5','T6'];
-  const data = { T1: c.T1, T2: c.T2, T3: c.T3, T4: c.T4, T5: c.T5, T6: c.T6 };
-
-  let html = '<thead><tr><th>开关</th>';
-  c.phases.forEach((ph, i) => {
-    const t = stateType(ph);
-    const cls = t==='p'?'cell-on-p': t==='n'?'cell-on-n': t==='t'?'cell-on-t':'';
-    html += `<th class="${cls}">阶段${i+1}<br><span style="font-size:13px">${ph}</span></th>`;
+  const sws = ['T1','T2','T3','T4','T5','T6'];
+  const data = {T1:c.T1,T2:c.T2,T3:c.T3,T4:c.T4,T5:c.T5,T6:c.T6};
+  let h = '<thead><tr><th>开关</th>';
+  c.phases.forEach((ph,i)=>{
+    const t=stateType(ph);
+    const cls=t==='p'?'cell-p':t==='n'?'cell-n':'cell-t';
+    h+=`<th class="${cls}">P${i+1}<br>${ph}</th>`;
   });
-  html += '</tr></thead><tbody>';
-
-  switches.forEach(sw => {
-    html += `<tr><td class="switch-label">${sw}</td>`;
-    data[sw].forEach((v, i) => {
-      const ph = c.phases[i];
-      const t = stateType(ph);
-      let cls = v ? (t==='p'?'cell-on-p': t==='n'?'cell-on-n': t==='t'?'cell-on-t':'cell-on-p') : 'cell-off';
-      html += `<td class="${cls}">${v ? 'ON' : 'OFF'}</td>`;
+  h+='</tr></thead><tbody>';
+  sws.forEach(sw=>{
+    h+=`<tr><td class="sw-label">${sw}</td>`;
+    data[sw].forEach((v,i)=>{
+      const ph=c.phases[i]; const t=stateType(ph);
+      const cls = v ? (t==='p'?'cell-p':t==='n'?'cell-n':'cell-t') : 'cell-off';
+      h+=`<td class="${cls}">${v?'ON':'OFF'}</td>`;
     });
-    html += '</tr>';
+    h+='</tr>';
   });
-
-  html += '</tbody>';
-  tbl.innerHTML = html;
+  tbl.innerHTML=h+'</tbody>';
 }
 
-// ===================== Sequence Info =====================
-function renderSeq(caseIdx) {
-  const c = CASES[caseIdx];
-  const statesEl = document.getElementById('seqStates');
-  const descEl   = document.getElementById('seqDesc');
-
-  let html = '';
-  c.phases.forEach((ph, i) => {
-    if (i > 0) html += '<span class="seq-arrow">→</span>';
-    const t = stateType(ph);
-    const cls = t==='p'?'state-p': t==='n'?'state-n': t==='t'?'state-t':'state-o';
-    html += `<span class="seq-state ${cls}">${ph}</span>`;
+// ═══════════════════════════════════════════════════════
+//  Render sequence strip
+// ═══════════════════════════════════════════════════════
+function renderSeq(c) {
+  let h='';
+  c.phases.forEach((ph,i)=>{
+    if(i>0) h+='<span class="sa">→</span>';
+    const t=stateType(ph);
+    h+=`<span class="ss ${t==='p'?'sp':t==='n'?'sn':'st'}">${ph}</span>`;
   });
-  statesEl.innerHTML = html;
-  descEl.textContent = c.desc;
+  document.getElementById('seqStates').innerHTML=h;
+  document.getElementById('seqDesc').textContent=c.desc;
 }
 
-// ===================== Canvas Waveform =====================
-const canvas = document.getElementById('waveCanvas');
-const ctx = canvas.getContext('2d');
-let currentCase = 0;
+// ═══════════════════════════════════════════════════════
+//  Draw carrier comparison diagram (top canvas)
+// ═══════════════════════════════════════════════════════
+function drawCarrier(c) {
+  const cv = document.getElementById('carrierCanvas');
+  const dpr = devicePixelRatio||1;
+  const W=cv.clientWidth, H=cv.clientHeight;
+  if(!W||!H) return;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
 
-// Row labels and signal data extractors
-const ROWS = [
-  { label: 'T1',    color: '#ff6060', getArr: c => c.T1 },
-  { label: 'T2',    color: '#60c060', getArr: c => c.T2 },
-  { label: 'T3',    color: '#60c060', getArr: c => c.T3, dashed: true },
-  { label: 'T4',    color: '#8888ff', getArr: c => c.T4 },
-  { label: 'T5',    color: '#ffaa30', getArr: c => c.T5 },
-  { label: 'T6',    color: '#ffaa30', getArr: c => c.T6, dashed: true },
-];
+  const LP=52, RP=14, TP=20, BP=18;
+  const drawW=W-LP-RP, drawH=H-TP-BP;
+  const yMid=TP+drawH/2;
+  const halfH=drawH/2*0.82;  // ±1 spans this many pixels (leave margin)
+  const xScale=t=>LP+t*drawW;
+  const yv=v=>vy(v,yMid,halfH);
 
-function drawWaveform(caseIdx) {
-  const c = CASES[caseIdx];
-  const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth;
-  const H = canvas.clientHeight;
-  canvas.width  = W * dpr;
-  canvas.height = H * dpr;
-  ctx.scale(dpr, dpr);
-
-  ctx.clearRect(0, 0, W, H);
-
-  // Layout
-  const leftPad  = 38;
-  const rightPad = 12;
-  const topPad   = 28;
-  const botPad   = 12;
-  const nPhases  = 5;
-  const nRows    = ROWS.length;
-  const rowH     = (H - topPad - botPad) / (nRows + 0.5); // extra 0.5 for carrier
-  const carrierH = rowH * 0.8;
-  const sigH     = rowH * 0.8;
-  const drawW    = W - leftPad - rightPad;
-  const phaseW   = drawW / nPhases;
-
-  // ---- Background phase columns ----
-  c.phases.forEach((ph, i) => {
-    const t = stateType(ph);
-    const x = leftPad + i * phaseW;
-    let bg = 'rgba(255,255,255,0.02)';
-    if (t === 'p') bg = 'rgba(220,60,60,0.08)';
-    if (t === 'n') bg = 'rgba(60,120,220,0.08)';
-    if (t === 't') bg = 'rgba(220,160,40,0.10)';
-    ctx.fillStyle = bg;
-    ctx.fillRect(x, topPad, phaseW, H - topPad - botPad);
-  });
-
-  // ---- Grid lines (vertical phase separators) ----
-  ctx.strokeStyle = '#2a3a5a';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= nPhases; i++) {
-    const x = leftPad + i * phaseW;
-    ctx.beginPath();
-    ctx.moveTo(x, topPad);
-    ctx.lineTo(x, H - botPad);
-    ctx.stroke();
+  // ── background: shade zones based on actual vref comparison ──
+  const N_STEPS=400;
+  for(let i=0;i<N_STEPS;i++){
+    const t0=i/N_STEPS, t1=(i+1)/N_STEPS;
+    const t=0.5*(t0+t1);
+    const vref = t<0.5 ? c.vA : c.vB;
+    const c1=carrier1(t,c.loadShape);
+    const c2=carrier2(t,c.loadShape);
+    let state;
+    if(vref>c1)            state='P';
+    else if(vref>0)        state='OU';
+    else if(vref>c2)       state='OL';
+    else                   state='N';
+    ctx.fillStyle=
+      state==='P'  ? 'rgba(220,60,60,0.13)':
+      state==='N'  ? 'rgba(60,120,220,0.13)':
+                     'rgba(80,180,80,0.08)';
+    ctx.fillRect(xScale(t0),TP,xScale(t1)-xScale(t0),drawH);
   }
 
-  // ---- Phase labels at top ----
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  c.phases.forEach((ph, i) => {
-    const x = leftPad + (i + 0.5) * phaseW;
-    const t = stateType(ph);
-    ctx.fillStyle = t==='p'?'#ff8a8a': t==='n'?'#88b4ff': t==='t'?'#ffd070':'#88ee88';
-    ctx.font = `bold 11px Segoe UI`;
-    ctx.fillText(ph, x, topPad / 2 + 2);
+  // ── phase region overlays ──
+  c.pBounds.forEach((x0,i)=>{
+    if(i===c.pBounds.length-1) return;
+    const x1=c.pBounds[i+1];
+    const ph=c.phases[i];
+    const t=stateType(ph);
+    ctx.fillStyle=
+      t==='p'?'rgba(220,60,60,0.12)':
+      t==='n'?'rgba(60,120,220,0.12)':
+              'rgba(220,160,40,0.18)';
+    ctx.fillRect(xScale(x0),TP,xScale(x1)-xScale(x0),drawH);
+    // phase label at top
+    ctx.fillStyle=t==='p'?'#ff8a8a':t==='n'?'#88b4ff':'#ffd070';
+    ctx.font='bold 10px Segoe UI';
+    ctx.textAlign='center';
+    ctx.fillText(ph, xScale((x0+x1)/2), TP+11);
   });
 
-  // ---- Carrier triangle (decorative) ----
-  const carrierY0 = topPad + (rowH * 0.1);
-  const carrierY1 = carrierY0 + carrierH;
-  const carrierMid = (carrierY0 + carrierY1) / 2;
-
-  // Draw a symmetric triangle wave spanning full width
-  ctx.strokeStyle = 'rgba(160,200,255,0.25)';
-  ctx.lineWidth = 1.5;
+  // ── phase boundary lines ──
+  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1;
+  ctx.setLineDash([3,3]);
+  c.pBounds.slice(1,-1).forEach(x=>{
+    ctx.beginPath();
+    ctx.moveTo(xScale(x),TP); ctx.lineTo(xScale(x),TP+drawH);
+    ctx.stroke();
+  });
   ctx.setLineDash([]);
+
+  // ── loading moment vertical line ──
+  ctx.strokeStyle='rgba(255,200,50,0.7)'; ctx.lineWidth=1.5;
+  ctx.setLineDash([4,3]);
   ctx.beginPath();
-  const pts = nPhases * 4;
-  for (let i = 0; i <= pts; i++) {
-    const x = leftPad + (i / pts) * drawW;
-    // triangle: 0→1→0→-1→0 pattern, 2 full cycles
-    const t = (i / pts) * 4; // 4 half-cycles
-    const frac = t % 1;
-    const tri = Math.floor(t) % 2 === 0 ? frac : 1 - frac;
-    // map [0,1] → [carrierY1, carrierY0]
-    const y = carrierY1 - tri * (carrierY1 - carrierY0);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  ctx.moveTo(xScale(0.5),TP); ctx.lineTo(xScale(0.5),TP+drawH);
+  ctx.stroke(); ctx.setLineDash([]);
+
+  // ── zero line ──
+  ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=0.8;
+  ctx.beginPath(); ctx.moveTo(LP,yMid); ctx.lineTo(W-RP,yMid); ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='9px Segoe UI';
+  ctx.textAlign='right'; ctx.fillText('0',LP-3,yMid+3);
+
+  // ── y-axis labels ──
+  [1,0.6,-0.6,-1].forEach(v=>{
+    const y=yv(v);
+    ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=0.5;
+    ctx.setLineDash([2,4]);
+    ctx.beginPath(); ctx.moveTo(LP,y); ctx.lineTo(W-RP,y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(200,200,200,0.4)'; ctx.font='8px Segoe UI';
+    ctx.textAlign='right';
+    ctx.fillText(v.toFixed(1),LP-3,y+3);
+  });
+
+  // ── carrier1 line ──
+  ctx.strokeStyle='rgba(180,220,255,0.7)'; ctx.lineWidth=1.5; ctx.setLineDash([]);
+  ctx.beginPath();
+  for(let i=0;i<=N_STEPS;i++){
+    const t=i/N_STEPS;
+    const x=xScale(t), y=yv(carrier1(t,c.loadShape));
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
   }
   ctx.stroke();
 
-  // Carrier label
-  ctx.fillStyle = 'rgba(160,200,255,0.5)';
-  ctx.font = '10px Segoe UI';
-  ctx.textAlign = 'left';
-  ctx.fillText('载波', 2, carrierMid);
+  // ── carrier2 line ──
+  ctx.strokeStyle='rgba(180,220,255,0.45)'; ctx.lineWidth=1.2;
+  ctx.setLineDash([4,3]);
+  ctx.beginPath();
+  for(let i=0;i<=N_STEPS;i++){
+    const t=i/N_STEPS;
+    const x=xScale(t), y=yv(carrier2(t,c.loadShape));
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke(); ctx.setLineDash([]);
 
-  // ---- Signal rows ----
-  ROWS.forEach((row, ri) => {
-    const arr = row.getArr(c);
-    const yBase = topPad + rowH * (ri + 1.2);
-    const yHigh = yBase;
-    const yLow  = yBase + sigH * 0.85;
-    const yMid  = (yHigh + yLow) / 2;
+  // ── vref_before line (left half) ──
+  const xLoad=xScale(0.5);
+  ctx.strokeStyle= c.vA>0?'rgba(255,120,100,0.9)':'rgba(100,160,255,0.9)';
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(LP, yv(c.vA)); ctx.lineTo(xLoad, yv(c.vA));
+  ctx.stroke();
+  // arrow at end
+  ctx.fillStyle=ctx.strokeStyle;
+  ctx.beginPath();
+  ctx.moveTo(xLoad,yv(c.vA));
+  ctx.lineTo(xLoad-7,yv(c.vA)-4);
+  ctx.lineTo(xLoad-7,yv(c.vA)+4);
+  ctx.closePath(); ctx.fill();
+  // label
+  ctx.font='bold 10px Segoe UI';
+  ctx.textAlign='left';
+  ctx.fillStyle= c.vA>0?'#ff9980':'#88b4ff';
+  ctx.fillText(`vref前 = ${c.vA.toFixed(2)}`, LP+4, yv(c.vA)-5);
 
-    // Row label
-    ctx.fillStyle = row.color;
-    ctx.font = 'bold 11px Segoe UI';
-    ctx.textAlign = 'right';
-    ctx.fillText(row.label, leftPad - 4, yMid);
+  // ── vref_after line (right half) ──
+  ctx.strokeStyle= c.vB>0?'rgba(255,120,100,0.9)':'rgba(100,160,255,0.9)';
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(xLoad, yv(c.vB)); ctx.lineTo(W-RP, yv(c.vB));
+  ctx.stroke();
+  // arrow at start
+  ctx.fillStyle=ctx.strokeStyle;
+  ctx.beginPath();
+  ctx.moveTo(xLoad,yv(c.vB));
+  ctx.lineTo(xLoad+7,yv(c.vB)-4);
+  ctx.lineTo(xLoad+7,yv(c.vB)+4);
+  ctx.closePath(); ctx.fill();
+  // label
+  ctx.font='bold 10px Segoe UI';
+  ctx.textAlign='right';
+  ctx.fillStyle= c.vB>0?'#ff9980':'#88b4ff';
+  ctx.fillText(`vref后 = ${c.vB.toFixed(2)}`, W-RP-4, yv(c.vB)-5);
 
-    // Baseline
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 0.5;
-    ctx.setLineDash([]);
+  // ── vref transition arrow (vertical at loading moment) ──
+  const yA=yv(c.vA), yB=yv(c.vB);
+  ctx.strokeStyle='rgba(255,200,80,0.8)'; ctx.lineWidth=1.5;
+  ctx.setLineDash([3,2]);
+  ctx.beginPath(); ctx.moveTo(xLoad,yA); ctx.lineTo(xLoad,yB); ctx.stroke();
+  ctx.setLineDash([]);
+  // arrow head toward new value
+  const dir=yB>yA?1:-1;
+  ctx.fillStyle='rgba(255,200,80,0.9)';
+  ctx.beginPath();
+  ctx.moveTo(xLoad,yB);
+  ctx.lineTo(xLoad-4,yB-dir*8);
+  ctx.lineTo(xLoad+4,yB-dir*8);
+  ctx.closePath(); ctx.fill();
+  // "装载" label
+  ctx.fillStyle='rgba(255,200,80,0.7)'; ctx.font='9px Segoe UI';
+  ctx.textAlign='center';
+  const labelText=c.loadShape==='peak'?'波峰装载':'波谷装载';
+  ctx.fillText(labelText, xLoad, TP+drawH+BP-4);
+
+  // ── legend ──
+  ctx.font='9px Segoe UI'; ctx.textAlign='left';
+  [['─ 载波₁','rgba(180,220,255,0.7)'],['- - 载波₂','rgba(180,220,255,0.45)']].forEach(([label,col],i)=>{
+    ctx.fillStyle=col;
+    ctx.fillText(label, LP+4+i*72, TP+drawH+BP-4);
+  });
+
+  // ── state zone legend (right) ──
+  ctx.textAlign='right';
+  [['P 区','rgba(255,120,100,0.8)'],['N 区','rgba(100,160,255,0.7)']].forEach(([label,col],i)=>{
+    ctx.fillStyle=col;
+    ctx.fillText(label, W-RP-4-i*42, TP+drawH+BP-4);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  Draw gate drive waveforms (bottom canvas)
+// ═══════════════════════════════════════════════════════
+const GATE_ROWS=[
+  {label:'T1',color:'#ff6060'},
+  {label:'T2',color:'#60c878'},
+  {label:'T3',color:'#60c878',dash:true},
+  {label:'T4',color:'#8888ff'},
+  {label:'T5',color:'#ffaa30'},
+  {label:'T6',color:'#ffaa30',dash:true},
+];
+
+function drawWave(c) {
+  const cv=document.getElementById('waveCanvas');
+  const dpr=devicePixelRatio||1;
+  const W=cv.clientWidth, H=cv.clientHeight;
+  if(!W||!H) return;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+
+  const LP=36, RP=12, TP=18, BP=4;
+  const drawW=W-LP-RP, drawH=H-TP-BP;
+  const pb=c.pBounds;             // phase boundary fractions
+  const nP=c.phases.length;       // =5
+  const rowH=drawH/GATE_ROWS.length;
+  const sigH=rowH*0.7;
+  const data={T1:c.T1,T2:c.T2,T3:c.T3,T4:c.T4,T5:c.T5,T6:c.T6};
+
+  // phase coloured backgrounds (use same pBounds proportions)
+  pb.forEach((x0,i)=>{
+    if(i===pb.length-1) return;
+    const x1=pb[i+1];
+    const ph=c.phases[i];
+    const t=stateType(ph);
+    ctx.fillStyle=
+      t==='p'?'rgba(220,60,60,0.07)':
+      t==='n'?'rgba(60,120,220,0.07)':
+              'rgba(220,160,40,0.10)';
+    ctx.fillRect(LP+x0*drawW,TP,(x1-x0)*drawW,drawH);
+    // phase label at top
+    ctx.fillStyle=t==='p'?'#ff8a8a':t==='n'?'#88b4ff':'#ffd070';
+    ctx.font='bold 9px Segoe UI'; ctx.textAlign='center';
+    ctx.fillText(ph, LP+(x0+x1)/2*drawW, TP+9);
+  });
+
+  // phase grid lines
+  ctx.strokeStyle='rgba(255,255,255,0.10)'; ctx.lineWidth=0.8;
+  ctx.setLineDash([3,3]);
+  pb.forEach(x=>{
+    const px=LP+x*drawW;
+    ctx.beginPath(); ctx.moveTo(px,TP); ctx.lineTo(px,TP+drawH); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  GATE_ROWS.forEach((row,ri)=>{
+    const arr=data[row.label];
+    const yBase=TP+ri*rowH+rowH*0.15;
+    const yHigh=yBase, yLow=yBase+sigH;
+    const yMid2=(yHigh+yLow)/2;
+
+    // row label
+    ctx.fillStyle=row.color; ctx.font='bold 10px Segoe UI'; ctx.textAlign='right';
+    ctx.fillText(row.label, LP-3, yMid2+3);
+
+    // baseline
+    ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(LP,yLow); ctx.lineTo(W-RP,yLow); ctx.stroke();
+
+    // digital step waveform
+    ctx.strokeStyle=row.color; ctx.lineWidth=1.8;
+    ctx.setLineDash(row.dash?[4,3]:[]);
     ctx.beginPath();
-    ctx.moveTo(leftPad, yLow);
-    ctx.lineTo(W - rightPad, yLow);
-    ctx.stroke();
-
-    // Digital step waveform
-    ctx.strokeStyle = row.color;
-    ctx.lineWidth = 1.8;
-    if (row.dashed) ctx.setLineDash([4, 3]);
-    else ctx.setLineDash([]);
-
-    ctx.beginPath();
-    let prevY = arr[0] ? yHigh : yLow;
-    ctx.moveTo(leftPad, prevY);
-
-    for (let i = 0; i < nPhases; i++) {
-      const x0 = leftPad + i * phaseW;
-      const x1 = leftPad + (i + 1) * phaseW;
-      const curY = arr[i] ? yHigh : yLow;
-
-      if (curY !== prevY) {
-        // vertical transition at x0 (with small offset)
-        ctx.lineTo(x0 + 1, prevY);
-        ctx.lineTo(x0 + 1, curY);
-      }
-      ctx.lineTo(x1, curY);
-      prevY = curY;
+    let prevY=arr[0]?yHigh:yLow;
+    ctx.moveTo(LP+pb[0]*drawW, prevY);
+    for(let i=0;i<nP;i++){
+      const x0=LP+pb[i]*drawW, x1=LP+pb[i+1]*drawW;
+      const curY=arr[i]?yHigh:yLow;
+      if(curY!==prevY){ ctx.lineTo(x0+1,prevY); ctx.lineTo(x0+1,curY); }
+      ctx.lineTo(x1,curY);
+      prevY=curY;
     }
-    ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.stroke(); ctx.setLineDash([]);
 
-    // ON / OFF mini labels
-    ctx.font = '9px Segoe UI';
-    ctx.textAlign = 'center';
-    arr.forEach((v, i) => {
-      const x = leftPad + (i + 0.5) * phaseW;
-      if (v) {
-        ctx.fillStyle = row.color;
-        ctx.fillText('ON', x, yHigh - 5);
-      } else {
-        ctx.fillStyle = 'rgba(120,120,130,0.7)';
-        ctx.fillText('OFF', x, yLow + 8);
-      }
+    // ON/OFF labels
+    ctx.font='8px Segoe UI'; ctx.textAlign='center';
+    arr.forEach((v,i)=>{
+      const xc=LP+(pb[i]+pb[i+1])/2*drawW;
+      if(v){ ctx.fillStyle=row.color; ctx.fillText('ON',xc,yHigh-3); }
+      else { ctx.fillStyle='rgba(120,120,130,0.6)'; ctx.fillText('OFF',xc,yLow+9); }
     });
   });
 
-  // ---- Complementary pair annotations ----
-  ctx.textAlign = 'left';
-  ctx.font = '9px Segoe UI';
-  ctx.fillStyle = 'rgba(200,200,200,0.4)';
-  const t3Row = ROWS.findIndex(r => r.label === 'T3');
-  const t6Row = ROWS.findIndex(r => r.label === 'T6');
-  const y3 = topPad + rowH * (t3Row + 1.2) + sigH * 0.85 / 2;
-  const y6 = topPad + rowH * (t6Row + 1.2) + sigH * 0.85 / 2;
-  ctx.fillText('= T̄2', W - rightPad - 24, y3);
-  ctx.fillText('= T̄5', W - rightPad - 24, y6);
+  // complementary annotations
+  ctx.font='8px Segoe UI'; ctx.textAlign='right';
+  const annY=(ri)=>TP+ri*rowH+rowH*0.15+sigH/2+3;
+  ctx.fillStyle='rgba(200,200,200,0.35)';
+  ctx.fillText('= T̄₂', W-RP-2, annY(2));
+  ctx.fillText('= T̄₅', W-RP-2, annY(5));
 }
 
-// ===================== Resize observer =====================
-function render(caseIdx) {
-  renderTable(caseIdx);
-  renderSeq(caseIdx);
-  drawWaveform(caseIdx);
+// ═══════════════════════════════════════════════════════
+//  Main render
+// ═══════════════════════════════════════════════════════
+let cur=0;
+function render(idx){
+  const c=CASES[idx];
+  renderTable(c); renderSeq(c);
+  drawCarrier(c); drawWave(c);
 }
 
-const ro = new ResizeObserver(() => drawWaveform(currentCase));
-ro.observe(canvas.parentElement);
+// Resize
+const ro=new ResizeObserver(()=>{ drawCarrier(CASES[cur]); drawWave(CASES[cur]); });
+ro.observe(document.getElementById('carrierCanvas').parentElement);
+ro.observe(document.getElementById('waveCanvas').parentElement);
 
-// ===================== Button Events =====================
-document.querySelectorAll('.scenario-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+// Buttons
+document.querySelectorAll('.scenario-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.scenario-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    currentCase = parseInt(btn.dataset.case);
-    render(currentCase);
+    cur=parseInt(btn.dataset.case);
+    render(cur);
   });
 });
 
-// Initial render
 render(0);
 </script>
 </body>
