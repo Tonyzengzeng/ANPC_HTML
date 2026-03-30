@@ -129,35 +129,53 @@ body {
 // ═══════════════════════════════════════════════════════
 //  Case data
 // ═══════════════════════════════════════════════════════
+// cmpLines: 3 PWM compare-register lines (blue=T6/T4, green=T2/T3, red=T1/T5)
+// visBefore/visAfter: normalised y-position in carrier diagram (0=bottom, 1=top)
+// Carrier triangle occupies the same 0-1 range.
+// The gap between blue and green after loading creates the OU₁ overlap window.
+// The gap between red and bottom   after loading creates the OL₁ overlap window.
 const CASES = [
   {
     label: 'P → N · 波峰装载',
     phases: ['P','OU₁','N','OL₁','N'],
     T1:[1,0,0,0,0], T2:[1,1,0,0,0], T3:[0,0,1,1,1],
     T4:[0,0,1,0,1], T5:[0,1,1,1,1], T6:[1,1,0,1,0],
-    // Carrier: peak at center (0→1→0).  Loading moment: x=0.5
-    loadShape: 'peak',          // carrier1(t) peaks at t=0.5
-    vA: +0.60,                  // vref before loading
-    vB: -0.60,                  // vref after loading
-    // Phase boundary fractions (0..1) within the display window
-    // Derived from carrier intersection with vref values
-    // Left half:  carrier crosses vA=0.6 at t=0.30 → P/OU boundary
-    // Right half: carrier2 crosses vB=-0.6 at t=0.70 → OL/N boundary
-    pBounds: [0, 0.30, 0.50, 0.70, 0.84, 1.0],
-    desc: '波峰时调制波 vref 从 +0.60 跳变到 −0.60。\n左半周期：vref > 载波 → P；载波超过 0.60 → 插入 OU₁ 过渡。\n右半周期：载波谷侧 carrier₂ < −0.60 → 先呈 OL，插入 OL₁ 后跳 N 稳态。'
+    loadShape: 'peak',   // carrier: 0→1→0, loading at peak (x=0.5)
+    // Phase boundary fractions (schematic, equal-ish widths for readability)
+    pBounds: [0, 0.50, 0.62, 0.82, 0.91, 1.0],
+    // Three compare-register lines
+    cmpLines: [
+      { label:'T6/T4', color:'#5bc8f5',
+        visBefore:0.88, visAfter:0.76,
+        regBefore:'65535', regAfter:'64535' },
+      { label:'T2/T3', color:'#66cc66',
+        visBefore:0.88, visAfter:0.03,
+        regBefore:'65535', regAfter:'0' },
+      { label:'T1/T5', color:'#ff7070',
+        visBefore:0.03, visAfter:0.14,
+        regBefore:'0',     regAfter:'100' },
+    ],
+    desc: '波峰时 T2/T3 比较值从 65535 跳变到 0（绿线大幅下降）→ T3 立即导通。\nT6/T4 比较值仅减 1000（蓝线微降），在装载后载波下降期间短暂保持 T6 导通，与已导通的 T5 形成 OU₁ 重叠窗口。\nT1/T5 比较值从 0 升至 100（红线微升），在载波接近谷值时产生极短的 OL₁ 重叠窗口。'
   },
   {
     label: 'P → N · 波谷装载',
     phases: ['OU₁','P','OL₁','N','OL₁'],
     T1:[0,1,0,0,0], T2:[1,1,0,0,0], T3:[0,0,1,1,1],
     T4:[0,0,0,1,0], T5:[1,0,1,1,1], T6:[1,1,1,0,1],
-    loadShape: 'valley',        // carrier peaks at edges, valley at 0.5
-    vA: +0.60,
-    vB: -0.60,
-    // Left half:  carrier falls 1→0; crosses vA=0.6 at t=0.20 → OU before P
-    // Right half: carrier2 rises 0→-1; crosses vB=-0.6 at t=0.80 → OL then OL₁
-    pBounds: [0, 0.20, 0.50, 0.67, 0.82, 1.0],
-    desc: '波谷时调制波 vref 从 +0.60 跳变到 −0.60。\n左半周期（载波下降）：载波 > 0.60 → OU₁；载波 < 0.60 → P 稳态。\n右半周期（载波上升）：先 OL₁ 过渡，再 N 稳态，结束再次 OL₁ 预备下次切换。'
+    loadShape: 'valley', // carrier: 1→0→1, loading at valley (x=0.5)
+    pBounds: [0, 0.19, 0.50, 0.64, 0.80, 1.0],
+    cmpLines: [
+      { label:'T6/T4', color:'#5bc8f5',
+        visBefore:0.88, visAfter:0.76,
+        regBefore:'65535', regAfter:'64535' },
+      { label:'T2/T3', color:'#66cc66',
+        visBefore:0.88, visAfter:0.03,
+        regBefore:'65535', regAfter:'0' },
+      { label:'T1/T5', color:'#ff7070',
+        visBefore:0.03, visAfter:0.14,
+        regBefore:'0',     regAfter:'100' },
+    ],
+    desc: '波谷装载：载波从峰值下降时，蓝线（T6/T4=65535）仍高于载波，但最顶部出现短暂超越 → OU₁ 过渡窗口。\n载波降至谷值时装载新值，绿线骤降至 0，T3 立即导通。载波上升后蓝线（64535）很快被超越，进入 N 稳态。\nOL₁ 由红线（0→100）在载波上升初段创建。'
   },
   {
     label: 'N → P · 波峰装载',
@@ -165,12 +183,19 @@ const CASES = [
     T1:[0,0,0,1,0], T2:[0,0,1,1,1], T3:[1,1,0,0,0],
     T4:[0,1,0,0,0], T5:[1,1,1,0,1], T6:[1,0,1,1,1],
     loadShape: 'peak',
-    vA: -0.60,
-    vB: +0.60,
-    // Left half:  carrier2 crosses vA=-0.6 at t=0.30 → N/OL boundary → OL₁ inserted
-    // Right half: carrier1 crosses vB=0.6 at t=0.70 → OU₁ then P
-    pBounds: [0, 0.18, 0.50, 0.70, 0.84, 1.0],
-    desc: '波峰时调制波 vref 从 −0.60 跳变到 +0.60。\n左半周期：vref < carrier₂ → N；carrier₂ 超越 −0.60 → 插入 OL₁ 过渡。\n右半周期：载波超过 0.60 → OU₁ 过渡 → P 稳态，结尾再次 OU₁ 预备续电平。'
+    pBounds: [0, 0.18, 0.50, 0.62, 0.82, 1.0],
+    cmpLines: [
+      { label:'T6/T4', color:'#5bc8f5',
+        visBefore:0.03, visAfter:0.14,
+        regBefore:'0',     regAfter:'1000' },
+      { label:'T2/T3', color:'#66cc66',
+        visBefore:0.03, visAfter:0.88,
+        regBefore:'0',     regAfter:'65535' },
+      { label:'T1/T5', color:'#ff7070',
+        visBefore:0.88, visAfter:0.76,
+        regBefore:'65535', regAfter:'64535' },
+    ],
+    desc: '波峰时 T2/T3 比较值从 0 跳变到 65535（绿线大幅上升）→ T2 立即导通。\nT1/T5 比较值仅减 1000（红线微降），在装载后短暂保持 T5 导通，与已导通的 T6 形成 OU₁ 重叠窗口（与 P→N 对称）。\nT6/T4 从 0 升至 1000（蓝线微升），在载波接近谷值时产生极短 OL₁ 窗口。'
   },
   {
     label: 'N → P · 波谷装载',
@@ -178,12 +203,19 @@ const CASES = [
     T1:[0,0,1,0,1], T2:[0,0,1,1,1], T3:[1,1,0,0,0],
     T4:[1,0,0,0,0], T5:[1,1,0,1,0], T6:[0,1,1,1,1],
     loadShape: 'valley',
-    vA: -0.60,
-    vB: +0.60,
-    // Left half:  carrier2 crosses vA=-0.6 at t=0.20 → insert OL₁ before P
-    // Right half: carrier1 crosses vB=0.6 at t=0.80 → P then OU₁
-    pBounds: [0, 0.30, 0.50, 0.70, 0.84, 1.0],
-    desc: '波谷时调制波 vref 从 −0.60 跳变到 +0.60。\n左半周期（载波下降）：vref < carrier₂ → N；接近谷值插入 OL₁ 过渡。\n右半周期（载波上升）：P 稳态，载波超过 0.60 → OU₁ 过渡 → P 续保。'
+    pBounds: [0, 0.30, 0.50, 0.62, 0.82, 1.0],
+    cmpLines: [
+      { label:'T6/T4', color:'#5bc8f5',
+        visBefore:0.03, visAfter:0.14,
+        regBefore:'0',     regAfter:'1000' },
+      { label:'T2/T3', color:'#66cc66',
+        visBefore:0.03, visAfter:0.88,
+        regBefore:'0',     regAfter:'65535' },
+      { label:'T1/T5', color:'#ff7070',
+        visBefore:0.88, visAfter:0.76,
+        regBefore:'65535', regAfter:'64535' },
+    ],
+    desc: '波谷装载 N→P：载波下降阶段红线（T1/T5=65535）接近顶部，在载波超越红线前有短暂 OL₁ 窗口。\n谷值时绿线（T2/T3）从 0 跳变到 65535，T2 立即导通。\n载波上升后，红线（64535）短暂保持 T5 导通，与新导通的 T6 形成 OU₁ 重叠窗口，随后 P 稳定。'
   }
 ];
 
@@ -196,17 +228,16 @@ function stateType(s) {
   return 't'; // OU₁, OL₁
 }
 
-// Carrier functions (t ∈ [0,1])
-function carrier1(t, shape) {
-  // shape='peak':   triangle 0→1→0
-  // shape='valley': triangle 1→0→1
+// Carrier value (normalised 0-1) for given shape at fraction t ∈ [0,1]
+// 'peak':   triangle 0→1→0  (loads new compare value at peak)
+// 'valley': triangle 1→0→1  (loads new compare value at valley)
+function carrierVal(t, shape) {
   const tri = t < 0.5 ? 2*t : 2*(1-t); // 0→1→0
   return shape === 'peak' ? tri : 1 - tri;
 }
-function carrier2(t, shape) { return -carrier1(t, shape); }
 
-// Map voltage → pixel y within a given band
-function vy(v, yMid, halfH) { return yMid - v * halfH; }
+// Map normalised value v ∈ [0,1] → pixel y (0=bottom, 1=top of draw band)
+function normToY(v, yTop, yBot) { return yBot - v*(yBot-yTop); }
 
 // ═══════════════════════════════════════════════════════
 //  Render gate table
@@ -259,178 +290,221 @@ function drawCarrier(c) {
   cv.width=W*dpr; cv.height=H*dpr;
   const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
 
-  const LP=52, RP=14, TP=20, BP=18;
+  // Layout
+  const LP=46, RP=16, TP=22, BP=20;
   const drawW=W-LP-RP, drawH=H-TP-BP;
-  const yMid=TP+drawH/2;
-  const halfH=drawH/2*0.82;  // ±1 spans this many pixels (leave margin)
-  const xScale=t=>LP+t*drawW;
-  const yv=v=>vy(v,yMid,halfH);
+  const yTop=TP, yBot=TP+drawH;
+  // x/y helpers (normalised 0-1)
+  const xp = t => LP + t*drawW;
+  const yp = v => normToY(v, yTop, yBot);
+  const xLoad = xp(0.5);
+  const N = 500;
 
-  // ── background: shade zones based on actual vref comparison ──
-  const N_STEPS=400;
-  for(let i=0;i<N_STEPS;i++){
-    const t0=i/N_STEPS, t1=(i+1)/N_STEPS;
-    const t=0.5*(t0+t1);
-    const vref = t<0.5 ? c.vA : c.vB;
-    const c1=carrier1(t,c.loadShape);
-    const c2=carrier2(t,c.loadShape);
-    let state;
-    if(vref>c1)            state='P';
-    else if(vref>0)        state='OU';
-    else if(vref>c2)       state='OL';
-    else                   state='N';
-    ctx.fillStyle=
-      state==='P'  ? 'rgba(220,60,60,0.13)':
-      state==='N'  ? 'rgba(60,120,220,0.13)':
-                     'rgba(80,180,80,0.08)';
-    ctx.fillRect(xScale(t0),TP,xScale(t1)-xScale(t0),drawH);
-  }
-
-  // ── phase region overlays ──
+  // ── 1. Phase region backgrounds ─────────────────────────
   c.pBounds.forEach((x0,i)=>{
     if(i===c.pBounds.length-1) return;
     const x1=c.pBounds[i+1];
-    const ph=c.phases[i];
-    const t=stateType(ph);
+    const t=stateType(c.phases[i]);
     ctx.fillStyle=
-      t==='p'?'rgba(220,60,60,0.12)':
-      t==='n'?'rgba(60,120,220,0.12)':
-              'rgba(220,160,40,0.18)';
-    ctx.fillRect(xScale(x0),TP,xScale(x1)-xScale(x0),drawH);
-    // phase label at top
-    ctx.fillStyle=t==='p'?'#ff8a8a':t==='n'?'#88b4ff':'#ffd070';
-    ctx.font='bold 10px Segoe UI';
-    ctx.textAlign='center';
-    ctx.fillText(ph, xScale((x0+x1)/2), TP+11);
+      t==='p'?'rgba(220,60,60,0.11)':
+      t==='n'?'rgba(60,120,220,0.11)':
+              'rgba(220,160,40,0.14)';
+    ctx.fillRect(xp(x0), yTop, (x1-x0)*drawW, drawH);
   });
 
-  // ── phase boundary lines ──
-  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1;
+  // ── 2. Phase boundary lines ──────────────────────────────
+  ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.lineWidth=0.8;
   ctx.setLineDash([3,3]);
   c.pBounds.slice(1,-1).forEach(x=>{
-    ctx.beginPath();
-    ctx.moveTo(xScale(x),TP); ctx.lineTo(xScale(x),TP+drawH);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xp(x),yTop); ctx.lineTo(xp(x),yBot); ctx.stroke();
   });
   ctx.setLineDash([]);
 
-  // ── loading moment vertical line ──
-  ctx.strokeStyle='rgba(255,200,50,0.7)'; ctx.lineWidth=1.5;
-  ctx.setLineDash([4,3]);
-  ctx.beginPath();
-  ctx.moveTo(xScale(0.5),TP); ctx.lineTo(xScale(0.5),TP+drawH);
-  ctx.stroke(); ctx.setLineDash([]);
+  // ── 3. Phase labels (top) ────────────────────────────────
+  ctx.textAlign='center'; ctx.font='bold 10px Segoe UI';
+  c.pBounds.forEach((x0,i)=>{
+    if(i===c.pBounds.length-1) return;
+    const x1=c.pBounds[i+1];
+    const t=stateType(c.phases[i]);
+    ctx.fillStyle=t==='p'?'#ff8a8a':t==='n'?'#88b4ff':'#ffd070';
+    ctx.fillText(c.phases[i], xp((x0+x1)/2), yTop+12);
+  });
 
-  // ── zero line ──
-  ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=0.8;
-  ctx.beginPath(); ctx.moveTo(LP,yMid); ctx.lineTo(W-RP,yMid); ctx.stroke();
-  ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='9px Segoe UI';
-  ctx.textAlign='right'; ctx.fillText('0',LP-3,yMid+3);
-
-  // ── y-axis labels ──
-  [1,0.6,-0.6,-1].forEach(v=>{
-    const y=yv(v);
-    ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=0.5;
+  // ── 4. Y-axis ticks & horizontal grid ────────────────────
+  ctx.font='8px Segoe UI'; ctx.textAlign='right';
+  [1.0, 0.75, 0.5, 0.25, 0].forEach(v=>{
+    const y=yp(v);
+    ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=0.5;
     ctx.setLineDash([2,4]);
     ctx.beginPath(); ctx.moveTo(LP,y); ctx.lineTo(W-RP,y); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle='rgba(200,200,200,0.4)'; ctx.font='8px Segoe UI';
-    ctx.textAlign='right';
-    ctx.fillText(v.toFixed(1),LP-3,y+3);
+    ctx.fillStyle='rgba(180,180,180,0.45)';
+    ctx.fillText(v===1?'MAX':v===0?'0':`${Math.round(v*65535)}`, LP-3, y+3);
   });
 
-  // ── carrier1 line ──
-  ctx.strokeStyle='rgba(180,220,255,0.7)'; ctx.lineWidth=1.5; ctx.setLineDash([]);
+  // ── 5. Carrier fill (shaded area under carrier triangle) ─
   ctx.beginPath();
-  for(let i=0;i<=N_STEPS;i++){
-    const t=i/N_STEPS;
-    const x=xScale(t), y=yv(carrier1(t,c.loadShape));
-    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  ctx.moveTo(xp(0), yBot);
+  for(let i=0;i<=N;i++){
+    const t=i/N;
+    ctx.lineTo(xp(t), yp(carrierVal(t, c.loadShape)));
   }
-  ctx.stroke();
+  ctx.lineTo(xp(1), yBot);
+  ctx.closePath();
+  ctx.fillStyle='rgba(140,200,255,0.07)';
+  ctx.fill();
 
-  // ── carrier2 line ──
-  ctx.strokeStyle='rgba(180,220,255,0.45)'; ctx.lineWidth=1.2;
-  ctx.setLineDash([4,3]);
-  ctx.beginPath();
-  for(let i=0;i<=N_STEPS;i++){
-    const t=i/N_STEPS;
-    const x=xScale(t), y=yv(carrier2(t,c.loadShape));
-    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-  }
-  ctx.stroke(); ctx.setLineDash([]);
-
-  // ── vref_before line (left half) ──
-  const xLoad=xScale(0.5);
-  ctx.strokeStyle= c.vA>0?'rgba(255,120,100,0.9)':'rgba(100,160,255,0.9)';
-  ctx.lineWidth=2;
-  ctx.beginPath();
-  ctx.moveTo(LP, yv(c.vA)); ctx.lineTo(xLoad, yv(c.vA));
-  ctx.stroke();
-  // arrow at end
-  ctx.fillStyle=ctx.strokeStyle;
-  ctx.beginPath();
-  ctx.moveTo(xLoad,yv(c.vA));
-  ctx.lineTo(xLoad-7,yv(c.vA)-4);
-  ctx.lineTo(xLoad-7,yv(c.vA)+4);
-  ctx.closePath(); ctx.fill();
-  // label
-  ctx.font='bold 10px Segoe UI';
-  ctx.textAlign='left';
-  ctx.fillStyle= c.vA>0?'#ff9980':'#88b4ff';
-  ctx.fillText(`vref前 = ${c.vA.toFixed(2)}`, LP+4, yv(c.vA)-5);
-
-  // ── vref_after line (right half) ──
-  ctx.strokeStyle= c.vB>0?'rgba(255,120,100,0.9)':'rgba(100,160,255,0.9)';
-  ctx.lineWidth=2;
-  ctx.beginPath();
-  ctx.moveTo(xLoad, yv(c.vB)); ctx.lineTo(W-RP, yv(c.vB));
-  ctx.stroke();
-  // arrow at start
-  ctx.fillStyle=ctx.strokeStyle;
-  ctx.beginPath();
-  ctx.moveTo(xLoad,yv(c.vB));
-  ctx.lineTo(xLoad+7,yv(c.vB)-4);
-  ctx.lineTo(xLoad+7,yv(c.vB)+4);
-  ctx.closePath(); ctx.fill();
-  // label
-  ctx.font='bold 10px Segoe UI';
-  ctx.textAlign='right';
-  ctx.fillStyle= c.vB>0?'#ff9980':'#88b4ff';
-  ctx.fillText(`vref后 = ${c.vB.toFixed(2)}`, W-RP-4, yv(c.vB)-5);
-
-  // ── vref transition arrow (vertical at loading moment) ──
-  const yA=yv(c.vA), yB=yv(c.vB);
-  ctx.strokeStyle='rgba(255,200,80,0.8)'; ctx.lineWidth=1.5;
-  ctx.setLineDash([3,2]);
-  ctx.beginPath(); ctx.moveTo(xLoad,yA); ctx.lineTo(xLoad,yB); ctx.stroke();
+  // ── 6. Carrier triangle line ─────────────────────────────
+  ctx.strokeStyle='rgba(160,210,255,0.65)'; ctx.lineWidth=1.8;
   ctx.setLineDash([]);
-  // arrow head toward new value
-  const dir=yB>yA?1:-1;
-  ctx.fillStyle='rgba(255,200,80,0.9)';
   ctx.beginPath();
-  ctx.moveTo(xLoad,yB);
-  ctx.lineTo(xLoad-4,yB-dir*8);
-  ctx.lineTo(xLoad+4,yB-dir*8);
-  ctx.closePath(); ctx.fill();
-  // "装载" label
-  ctx.fillStyle='rgba(255,200,80,0.7)'; ctx.font='9px Segoe UI';
-  ctx.textAlign='center';
-  const labelText=c.loadShape==='peak'?'波峰装载':'波谷装载';
-  ctx.fillText(labelText, xLoad, TP+drawH+BP-4);
+  for(let i=0;i<=N;i++){
+    const t=i/N, x=xp(t), y=yp(carrierVal(t,c.loadShape));
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.stroke();
 
-  // ── legend ──
-  ctx.font='9px Segoe UI'; ctx.textAlign='left';
-  [['─ 载波₁','rgba(180,220,255,0.7)'],['- - 载波₂','rgba(180,220,255,0.45)']].forEach(([label,col],i)=>{
-    ctx.fillStyle=col;
-    ctx.fillText(label, LP+4+i*72, TP+drawH+BP-4);
+  // ── 7. Loading-moment vertical marker ────────────────────
+  ctx.strokeStyle='rgba(255,210,60,0.75)'; ctx.lineWidth=1.6;
+  ctx.setLineDash([5,3]);
+  ctx.beginPath(); ctx.moveTo(xLoad,yTop); ctx.lineTo(xLoad,yBot); ctx.stroke();
+  ctx.setLineDash([]);
+  // "装载" label below x-axis
+  ctx.fillStyle='rgba(255,210,60,0.7)'; ctx.font='9px Segoe UI';
+  ctx.textAlign='center';
+  ctx.fillText(c.loadShape==='peak'?'↑波峰装载':'↓波谷装载', xLoad, yBot+BP-4);
+
+  // ── 8. Three compare-register stepped lines ───────────────
+  // For each line: horizontal segment before loading, step at xLoad, segment after
+  c.cmpLines.forEach((ln, li)=>{
+    const yB = yp(ln.visBefore);   // y position before loading
+    const yA = yp(ln.visAfter);    // y position after loading
+
+    // -- left half (before loading) --
+    ctx.strokeStyle = ln.color + 'cc';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(xp(0), yB);
+    ctx.lineTo(xLoad,  yB);
+    ctx.stroke();
+
+    // -- vertical step at loading moment --
+    ctx.strokeStyle = ln.color + '88';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([3,2]);
+    ctx.beginPath();
+    ctx.moveTo(xLoad, yB);
+    ctx.lineTo(xLoad, yA);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // -- right half (after loading) --
+    ctx.strokeStyle = ln.color + 'cc';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(xLoad, yA);
+    ctx.lineTo(xp(1), yA);
+    ctx.stroke();
+
+    // -- label on right edge --
+    ctx.fillStyle = ln.color;
+    ctx.font = 'bold 9px Segoe UI';
+    ctx.textAlign = 'left';
+    ctx.fillText(ln.label, xp(1)+3, yA+3);
+
+    // -- register value annotations --
+    // "before" value: shown near left edge
+    ctx.font = '8px Segoe UI';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = ln.color + 'aa';
+    ctx.fillText(ln.regBefore, xp(0.01), yB - 4);
+    // "after" value: shown after xLoad on right
+    ctx.textAlign = 'right';
+    ctx.fillText(ln.regAfter, xp(0.99), yA - 4);
+
+    // -- crossing circles: where carrier line meets this compare line --
+    // Find x where carrierVal(x, shape) ≈ vis value (after loading, right half)
+    // We search in the right half for a crossing with visAfter
+    // (only draw if the carrier actually reaches that level)
+    const cv2 = ln.visAfter;
+    // For peak shape: carrier falls from 1→0 in right half.  Cross at x=1-cv2/2
+    // For valley shape: carrier rises from 0→1 in right half. Cross at x=(cv2+1)/2
+    let xCross;
+    if(c.loadShape==='peak'){
+      xCross = 1 - cv2/2;      // carrier1(x,'peak') = cv2 → x = 1 - cv2/2  (right half)
+    } else {
+      xCross = (cv2+1)/2;       // carrier1(x,'valley') = cv2 → x = (cv2+1)/2 (right half)
+    }
+    if(xCross > 0.5 && xCross < 1.0){
+      const xc=xp(xCross), yc=yp(cv2);
+      ctx.beginPath();
+      ctx.arc(xc, yc, 3.5, 0, Math.PI*2);
+      ctx.fillStyle = ln.color + 'ee';
+      ctx.fill();
+      ctx.strokeStyle = '#fff8';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+
+    // Also check left half crossing with visBefore
+    // For peak shape: carrier rises 0→1 in left half.  Cross at x=visBefore/2
+    // For valley shape: carrier falls 1→0 in left half. Cross at x=(1-visBefore)/2
+    let xCrossL;
+    if(c.loadShape==='peak'){
+      xCrossL = ln.visBefore/2;
+    } else {
+      xCrossL = (1-ln.visBefore)/2;
+    }
+    if(xCrossL > 0 && xCrossL < 0.5){
+      const xc=xp(xCrossL), yc=yp(ln.visBefore);
+      ctx.beginPath();
+      ctx.arc(xc, yc, 3.5, 0, Math.PI*2);
+      ctx.fillStyle = ln.color + 'ee';
+      ctx.fill();
+      ctx.strokeStyle = '#fff8';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
   });
 
-  // ── state zone legend (right) ──
-  ctx.textAlign='right';
-  [['P 区','rgba(255,120,100,0.8)'],['N 区','rgba(100,160,255,0.7)']].forEach(([label,col],i)=>{
-    ctx.fillStyle=col;
-    ctx.fillText(label, W-RP-4-i*42, TP+drawH+BP-4);
+  // ── 9. Overlap window annotations (OU₁ / OL₁) ───────────
+  // OU₁ window: between blue and green on the "big-change" side
+  // Identify which line makes the big jump and which is the small companion
+  const cmpSorted = [...c.cmpLines].sort((a,b)=>
+    Math.abs(b.visAfter-b.visBefore) - Math.abs(a.visAfter-a.visBefore));
+  const bigLine   = cmpSorted[0];   // green (large change)
+  const smallTop  = cmpSorted[1];   // blue  (small change, near top after loading)
+  const smallBot  = cmpSorted[2];   // red   (small change, near bottom after loading)
+
+  // The OU₁ window is the gap between smallTop (visBefore) and bigLine (visBefore)
+  // when they overlap before loading — draw a narrow bracket on the left half
+  // Actually: highlight the OU₁/OL₁ phase bands in the carrier panel with a border
+  c.pBounds.forEach((x0,i)=>{
+    if(i===c.pBounds.length-1) return;
+    if(stateType(c.phases[i])==='t'){   // transition state
+      const x1=c.pBounds[i+1];
+      ctx.strokeStyle='rgba(255,200,60,0.5)';
+      ctx.lineWidth=1;
+      ctx.strokeRect(xp(x0)+1, yTop+18, (x1-x0)*drawW-2, drawH-18);
+    }
+  });
+
+  // ── 10. Legend ────────────────────────────────────────────
+  ctx.font='8.5px Segoe UI'; ctx.textAlign='left';
+  const lgX=LP+4, lgY=yBot+BP-4;
+  // Carrier
+  ctx.strokeStyle='rgba(160,210,255,0.65)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(lgX,lgY-3); ctx.lineTo(lgX+18,lgY-3); ctx.stroke();
+  ctx.fillStyle='rgba(160,210,255,0.8)';
+  ctx.fillText('载波', lgX+21, lgY);
+  // Three compare lines
+  c.cmpLines.forEach((ln,i)=>{
+    const lx=lgX+60+i*68;
+    ctx.strokeStyle=ln.color+'cc'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(lx,lgY-3); ctx.lineTo(lx+14,lgY-3); ctx.stroke();
+    ctx.fillStyle=ln.color;
+    ctx.fillText(ln.label, lx+17, lgY);
   });
 }
 
