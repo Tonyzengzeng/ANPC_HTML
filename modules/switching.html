@@ -369,10 +369,18 @@ function drawCarrier(c) {
   ctx.setLineDash([5,3]);
   ctx.beginPath(); ctx.moveTo(xLoad,yTop); ctx.lineTo(xLoad,yBot); ctx.stroke();
   ctx.setLineDash([]);
-  // "装载" label below x-axis
-  ctx.fillStyle='rgba(255,210,60,0.7)'; ctx.font='9px Segoe UI';
+  // "装载" label at line mid-height
+  ctx.fillStyle='rgba(255,210,60,0.85)'; ctx.font='bold 9px Segoe UI';
   ctx.textAlign='center';
-  ctx.fillText(c.loadShape==='peak'?'↑波峰装载':'↓波谷装载', xLoad, yBot+BP-4);
+  ctx.fillText('比较值', xLoad, yTop+drawH*0.44);
+  ctx.fillText('装载', xLoad, yTop+drawH*0.44+11);
+  // label below x-axis
+  ctx.fillStyle='rgba(255,210,60,0.6)'; ctx.font='8px Segoe UI';
+  ctx.fillText(c.loadShape==='peak'?'(波峰)':'(波谷)', xLoad, yBot+BP-4);
+  // small note: loading ≠ gate flip
+  ctx.fillStyle='rgba(200,200,200,0.45)'; ctx.font='8px Segoe UI';
+  ctx.textAlign='left';
+  ctx.fillText('装载≠驱动翻转', xLoad+4, yTop+drawH*0.44+22);
 
   // ── 8. Three compare-register stepped lines ───────────────
   // For each line: horizontal segment before loading, step at xLoad, segment after
@@ -533,7 +541,8 @@ function drawWave(c) {
   const pb=c.pBounds;             // phase boundary fractions
   const nP=c.phases.length;       // =5
   const rowH=drawH/GATE_ROWS.length;
-  const sigH=rowH*0.7;
+  const sigH=rowH*0.72;
+  const sigPad=(rowH-sigH)/2;
   const data={T1:c.T1,T2:c.T2,T3:c.T3,T4:c.T4,T5:c.T5,T6:c.T6};
 
   // phase coloured backgrounds (use same pBounds proportions)
@@ -564,8 +573,8 @@ function drawWave(c) {
 
   GATE_ROWS.forEach((row,ri)=>{
     const arr=data[row.label];
-    const yBase=TP+ri*rowH+rowH*0.15;
-    const yHigh=yBase, yLow=yBase+sigH;
+    const yHigh=TP+ri*rowH+sigPad;
+    const yLow=yHigh+sigH;
     const yMid2=(yHigh+yLow)/2;
 
     // row label
@@ -595,14 +604,14 @@ function drawWave(c) {
     ctx.font='8px Segoe UI'; ctx.textAlign='center';
     arr.forEach((v,i)=>{
       const xc=LP+(pb[i]+pb[i+1])/2*drawW;
-      if(v){ ctx.fillStyle=row.color; ctx.fillText('ON',xc,yHigh-3); }
-      else { ctx.fillStyle='rgba(120,120,130,0.6)'; ctx.fillText('OFF',xc,yLow+9); }
+      if(v){ ctx.fillStyle=row.color; ctx.fillText('ON',xc, yHigh+(yLow-yHigh)*0.32); }
+      else { ctx.fillStyle='rgba(120,120,130,0.6)'; ctx.fillText('OFF',xc, yLow-(yLow-yHigh)*0.28); }
     });
   });
 
   // complementary annotations
   ctx.font='8px Segoe UI'; ctx.textAlign='right';
-  const annY=(ri)=>TP+ri*rowH+rowH*0.15+sigH/2+3;
+  const annY=(ri)=>TP+ri*rowH+sigPad+sigH/2+3;
   ctx.fillStyle='rgba(200,200,200,0.35)';
   ctx.fillText('= T̄₂', W-RP-2, annY(2));
   ctx.fillText('= T̄₅', W-RP-2, annY(5));
